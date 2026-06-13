@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="144" height="160" viewBox="0 0 144 160">
+  <ellipse cx="72" cy="146" rx="50" ry="8" fill="#090a0d" opacity=".35"/>
+  <path d="M17 140 V69 H35 V47 H58 V69 H84 V39 H109 V69 H127 V140 Z
+           M59 107 C59 92 85 92 85 107 V142 H59 Z
+           M27 92 C27 81 45 81 45 92 V117 H27 Z
+           M99 91 C99 80 117 80 117 91 V118 H99 Z
+           M48 72 L70 59 L86 71 L63 81 Z" fill="#3b3942" fill-rule="evenodd"/>
+  <path d="M27 132 V76 H117 V132 Z
+           M59 107 C59 92 85 92 85 107 V142 H59 Z
+           M27 92 C27 81 45 81 45 92 V117 H27 Z
+           M99 91 C99 80 117 80 117 91 V118 H99 Z
+           M48 72 L70 59 L86 71 L63 81 Z" fill="#4a4651" fill-rule="evenodd"/>
+  <path d="M17 69 H35 V47 H58 V69 H84 V39 H109 V69 H127" fill="none" stroke="#191820" stroke-width="7"/>
+  <path d="M59 107 C59 92 85 92 85 107 V142 H59 Z" fill="#090a0d"/>
+  <path d="M27 92 C27 81 45 81 45 92 V117 H27 Z
+           M99 91 C99 80 117 80 117 91 V118 H99 Z" fill="#0a0b0f"/>
+  <path d="M58 107 C61 90 83 90 86 107" fill="none" stroke="#211820" stroke-width="3"/>
+  <path d="M18 140 H56 M89 140 H128" stroke="#17151a" stroke-width="5"/>
+  <path d="M32 47 L48 33 L58 47 M84 39 L97 23 L109 39" fill="#17131b"/>
+  <path d="M25 86 H52 M88 84 H120 M27 128 H116" stroke="#69636e" stroke-width="2" opacity=".65"/>
+</svg>

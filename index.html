@@ -1,0 +1,842 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Abbey Island Mystery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Creepster&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: "Creepster", Arial, Helvetica, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #1b2b34;
+      }
+
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        background: #2a69a8;
+        image-rendering: crisp-edges;
+      }
+
+      .intro {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        padding: 28px;
+        background:
+          linear-gradient(180deg, rgba(12, 15, 19, 0.38), rgba(12, 15, 19, 0.88)),
+          radial-gradient(circle at 24% 18%, rgba(125, 49, 88, 0.34), transparent 30%),
+          #121719;
+        color: #f5f4e8;
+      }
+
+      .intro.hidden {
+        display: none;
+      }
+
+      .intro::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(90deg, rgba(10, 13, 15, 0.92), rgba(10, 13, 15, 0.32) 48%, rgba(10, 13, 15, 0.82)),
+          linear-gradient(180deg, rgba(10, 13, 15, 0.08), rgba(10, 13, 15, 0.78)),
+          url("assets/graphics/nun.jpeg") center 34% / cover no-repeat;
+        opacity: 0.92;
+      }
+
+      .intro::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 34vh;
+        background:
+          url("assets/graphics/tile-forest.svg") 0 bottom / 96px 96px repeat-x,
+          linear-gradient(180deg, transparent, rgba(19, 32, 26, 0.92));
+        opacity: 0.32;
+        image-rendering: crisp-edges;
+      }
+
+      .intro-inner {
+        position: relative;
+        z-index: 1;
+        width: min(920px, 100%);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(252px, 320px);
+        gap: 28px;
+        align-items: end;
+      }
+
+      .intro-title {
+        max-width: 620px;
+        text-shadow: 0 4px 0 rgba(0, 0, 0, 0.38), 0 0 26px rgba(0, 0, 0, 0.72);
+      }
+
+      .intro-kicker {
+        display: inline-block;
+        margin-bottom: 12px;
+        padding: 7px 10px;
+        border: 1px solid rgba(235, 226, 176, 0.74);
+        background: rgba(22, 23, 32, 0.76);
+        color: #d7c47c;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .intro h1 {
+        margin: 0;
+        max-width: 11ch;
+        color: #fff7d6;
+        font-family: "Creepster", Arial, Helvetica, sans-serif;
+        font-size: clamp(46px, 8vw, 88px);
+        font-style: normal;
+        font-weight: 400;
+        line-height: 0.94;
+        letter-spacing: 0;
+      }
+
+      .intro p {
+        max-width: 520px;
+        margin: 18px 0 0;
+        color: #e8e1c3;
+        font-size: 18px;
+        line-height: 1.45;
+      }
+
+      .intro-menu {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border: 2px solid rgba(235, 226, 176, 0.86);
+        border-radius: 8px;
+        background: rgba(21, 27, 30, 0.9);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.42);
+      }
+
+      .intro-menu button {
+        width: 100%;
+        min-height: 48px;
+        border: 2px solid rgba(235, 226, 176, 0.76);
+        border-radius: 8px;
+        background: rgba(49, 48, 68, 0.84);
+        color: #f5f4e8;
+        font: 400 22px/1 "Creepster", Arial, Helvetica, sans-serif;
+        cursor: pointer;
+      }
+
+      .intro-menu button:hover,
+      .intro-menu button:focus-visible {
+        background: rgba(126, 49, 88, 0.9);
+        outline: none;
+      }
+
+      .intro-menu button:disabled {
+        border-color: rgba(173, 169, 151, 0.42);
+        background: rgba(75, 76, 82, 0.58);
+        color: rgba(245, 244, 232, 0.42);
+        cursor: not-allowed;
+      }
+
+      .intro-menu button:disabled:hover,
+      .intro-menu button:disabled:focus-visible {
+        background: rgba(75, 76, 82, 0.58);
+      }
+
+      .intro-menu .primary {
+        background: #7e3158;
+        color: #fff8d8;
+      }
+
+      .intro-menu .primary:disabled {
+        background: rgba(75, 76, 82, 0.58);
+        color: rgba(245, 244, 232, 0.42);
+      }
+
+      .new-game-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 11;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        padding: 28px;
+        background:
+          linear-gradient(180deg, rgba(11, 13, 16, 0.38), rgba(11, 13, 16, 0.9)),
+          url("assets/graphics/nun.jpeg") center 34% / cover no-repeat;
+        color: #f5f4e8;
+      }
+
+      .new-game-screen.hidden {
+        display: none;
+      }
+
+      .login-screen {
+        background:
+          linear-gradient(90deg, rgba(8, 10, 13, 0.96), rgba(8, 10, 13, 0.74) 46%, rgba(8, 10, 13, 0.38)),
+          url("assets/graphics/nun.jpeg") 72% 30% / cover no-repeat;
+      }
+
+      .new-game-panel {
+        width: min(560px, 100%);
+        padding: 18px;
+        border: 2px solid rgba(235, 226, 176, 0.86);
+        border-radius: 8px;
+        background: rgba(21, 27, 30, 0.94);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.48);
+      }
+
+      .new-game-panel h2 {
+        margin: 0 0 14px;
+        color: #fff7d6;
+        font: 400 42px/1 "Creepster", Arial, Helvetica, sans-serif;
+        letter-spacing: 0;
+      }
+
+      .new-game-form {
+        display: grid;
+        gap: 12px;
+      }
+
+      .new-game-field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .new-game-field label,
+      .new-game-reset legend {
+        color: #e8e1c3;
+        font-size: 21px;
+      }
+
+      .new-game-field input {
+        width: 100%;
+        min-height: 44px;
+        border: 2px solid rgba(235, 226, 176, 0.72);
+        border-radius: 8px;
+        background: rgba(17, 19, 24, 0.86);
+        color: #fff8d8;
+        font: 400 22px/1 "Creepster", Arial, Helvetica, sans-serif;
+        padding: 8px 10px;
+      }
+
+      .new-game-reset {
+        display: grid;
+        gap: 8px;
+        margin: 2px 0 0;
+        padding: 10px;
+        border: 1px solid rgba(235, 226, 176, 0.42);
+        border-radius: 8px;
+      }
+
+      .new-game-check {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        color: #f5f4e8;
+        font-size: 19px;
+      }
+
+      .new-game-check input {
+        width: 18px;
+        height: 18px;
+        accent-color: #7e3158;
+      }
+
+      .new-game-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 4px;
+      }
+
+      .new-game-actions button {
+        min-height: 44px;
+        min-width: 118px;
+        border: 2px solid rgba(235, 226, 176, 0.76);
+        border-radius: 8px;
+        background: rgba(49, 48, 68, 0.84);
+        color: #f5f4e8;
+        font: 400 22px/1 "Creepster", Arial, Helvetica, sans-serif;
+        cursor: pointer;
+      }
+
+      .new-game-actions .primary {
+        background: #7e3158;
+        color: #fff8d8;
+      }
+
+      .saved-game-list {
+        display: grid;
+        gap: 10px;
+        max-height: min(44vh, 360px);
+        overflow: auto;
+      }
+
+      .saved-game-button {
+        display: grid;
+        gap: 4px;
+        width: 100%;
+        min-height: 64px;
+        padding: 10px 12px;
+        border: 2px solid rgba(235, 226, 176, 0.72);
+        border-radius: 8px;
+        background: rgba(17, 19, 24, 0.86);
+        color: #f5f4e8;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .saved-game-button strong {
+        color: #fff8d8;
+        font: 400 22px/1 "Creepster", Arial, Helvetica, sans-serif;
+      }
+
+      .saved-game-button span,
+      .saved-game-empty {
+        color: #d8d2b6;
+        font-size: 15px;
+        line-height: 1.35;
+      }
+
+      .saved-game-button:hover,
+      .saved-game-button:focus-visible {
+        background: rgba(126, 49, 88, 0.72);
+        outline: none;
+      }
+
+      .saved-game-empty {
+        padding: 12px;
+        border: 1px dashed rgba(235, 226, 176, 0.48);
+        border-radius: 8px;
+        background: rgba(17, 19, 24, 0.58);
+      }
+
+      .new-game-actions button:hover,
+      .new-game-actions button:focus-visible,
+      .new-game-field input:focus-visible {
+        background: rgba(126, 49, 88, 0.9);
+        outline: none;
+      }
+
+      .new-game-status {
+        min-height: 22px;
+        color: #d8d2b6;
+        font-size: 16px;
+      }
+
+      .login-panel {
+        width: min(430px, 100%);
+        margin-right: auto;
+        border-color: rgba(156, 65, 95, 0.92);
+        background: rgba(13, 15, 19, 0.95);
+      }
+
+      .login-panel h2 {
+        color: #f2c3d3;
+      }
+
+      .intro-status {
+        min-height: 38px;
+        margin: 4px 2px 0;
+        color: #d8d2b6;
+        font-size: 14px;
+        line-height: 1.35;
+      }
+
+      .game-menu {
+        position: fixed;
+        left: 18px;
+        right: 18px;
+        top: calc(env(safe-area-inset-top, 0px) + 16px);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px 12px;
+        align-items: center;
+        width: auto;
+        max-width: none;
+        padding: 9px 10px 10px 14px;
+        border: 2px solid #ebe2b0;
+        border-radius: 8px;
+        background: rgba(28, 42, 50, 0.92);
+        color: #f5f4e8;
+      }
+
+      .game-menu-actions {
+        grid-column: 2;
+        grid-row: 1;
+        display: flex;
+        justify-content: flex-end;
+        flex-wrap: nowrap;
+        gap: 8px;
+      }
+
+      .inventory {
+        grid-column: 1;
+        min-width: 0;
+      }
+
+      .game-menu button {
+        min-width: 42px;
+        min-height: 36px;
+        border: 2px solid #ebe2b0;
+        border-radius: 8px;
+        background: rgba(49, 48, 68, 0.84);
+        color: #f5f4e8;
+        font: 400 18px/1 "Creepster", Arial, Helvetica, sans-serif;
+        cursor: pointer;
+      }
+
+      .game-menu button:hover,
+      .game-menu button:focus-visible {
+        background: rgba(126, 49, 88, 0.9);
+        outline: none;
+      }
+
+      .game-menu .sound {
+        width: 42px;
+        padding: 0;
+        display: grid;
+        place-items: center;
+      }
+
+      .game-menu .sound img {
+        width: 24px;
+        height: 24px;
+        pointer-events: none;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+
+      .menu-toggle {
+        display: grid;
+        place-items: center;
+        width: 42px;
+        padding: 0;
+        margin-left: auto;
+        order: 10;
+      }
+
+      .menu-toggle img {
+        display: block;
+        width: 24px;
+        height: 24px;
+        pointer-events: none;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+
+      .menu-toggle .toggle-expand,
+      .game-menu.actions-collapsed .menu-toggle .toggle-collapse {
+        display: none;
+      }
+
+      .game-menu.actions-collapsed .menu-toggle .toggle-expand {
+        display: block;
+      }
+
+      .game-menu.actions-collapsed .menu-action {
+        display: none;
+      }
+
+      .game-menu .sound .sound-off,
+      .game-menu .sound.muted .sound-on {
+        display: none;
+      }
+
+      .game-menu .sound.muted .sound-off {
+        display: block;
+      }
+
+      .inventory {
+        grid-column: 1;
+        grid-row: 1;
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 8px;
+        align-items: center;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: thin;
+      }
+
+      .inventory-slots,
+      .inventory-actions {
+        flex: 0 0 auto;
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .inventory-slot {
+        position: relative;
+        width: 42px;
+        height: 42px;
+        min-width: 42px;
+        min-height: 42px;
+        padding: 0;
+        border-color: rgba(235, 226, 176, 0.68);
+        background:
+          linear-gradient(180deg, rgba(17, 19, 24, 0.52), rgba(49, 48, 68, 0.72));
+        color: #fff7d6;
+        font-size: 20px;
+      }
+
+      .inventory-slot.empty::after {
+        content: "";
+        position: absolute;
+        inset: 10px;
+        border: 1px dashed rgba(235, 226, 176, 0.4);
+        border-radius: 4px;
+      }
+
+      .inventory-slot.selected {
+        background: rgba(126, 49, 88, 0.9);
+        box-shadow: inset 0 0 0 2px rgba(255, 248, 216, 0.42);
+      }
+
+      .inventory-separator {
+        width: 32px;
+        height: 32px;
+        flex: 0 0 32px;
+        min-width: 42px;
+        min-height: 42px;
+        padding: 4px;
+        background: rgba(49, 48, 68, 0.84);
+        image-rendering: crisp-edges;
+      }
+
+      .inventory-separator img {
+        display: block;
+        width: 30px;
+        height: 30px;
+        margin: auto;
+        image-rendering: crisp-edges;
+        pointer-events: none;
+      }
+
+      .inventory-action {
+        min-width: 74px;
+      }
+
+      .pad {
+        position: fixed;
+        right: 18px;
+        bottom: 166px;
+        display: grid;
+        grid-template-columns: repeat(3, 48px);
+        grid-template-rows: repeat(3, 48px);
+        gap: 6px;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+      }
+
+      .pad button {
+        display: grid;
+        place-items: center;
+        border: 2px solid rgba(235, 226, 176, 0.92);
+        border-radius: 8px;
+        background: rgba(28, 42, 50, 0.76);
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .pad img {
+        display: block;
+        width: 26px;
+        height: 26px;
+        pointer-events: none;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+
+      .pad button:active,
+      .game-menu button:active {
+        background: rgba(70, 96, 96, 0.9);
+      }
+
+      .pad .up {
+        grid-column: 2;
+      }
+
+      .pad .left {
+        grid-column: 1;
+        grid-row: 2;
+      }
+
+      .pad .right {
+        grid-column: 3;
+        grid-row: 2;
+      }
+
+      .pad .down {
+        grid-column: 2;
+        grid-row: 3;
+      }
+
+      @media (hover: hover) and (pointer: fine) {
+        .pad {
+          display: none;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .intro {
+          padding: 18px;
+        }
+
+        .intro-inner {
+          grid-template-columns: 1fr;
+          align-items: center;
+        }
+
+        .intro h1 {
+          max-width: 9ch;
+          font-size: 48px;
+        }
+
+        .intro p {
+          font-size: 16px;
+        }
+
+        .new-game-screen {
+          padding: 18px;
+        }
+
+        .new-game-panel h2 {
+          font-size: 34px;
+        }
+
+        .new-game-actions {
+          flex-direction: column-reverse;
+        }
+
+        .new-game-actions button {
+          width: 100%;
+        }
+
+        .game-menu {
+          left: 10px;
+          right: 10px;
+          top: calc(env(safe-area-inset-top, 0px) + 10px);
+          grid-template-columns: minmax(0, 1fr) auto;
+          width: auto;
+          max-width: none;
+          overflow-x: auto;
+          overflow-y: hidden;
+        }
+
+        .game-menu-actions {
+          grid-column: 2;
+          grid-row: 1;
+          display: flex;
+          justify-content: flex-end;
+          flex-wrap: nowrap;
+        }
+
+        .menu-toggle {
+          margin-left: auto;
+        }
+
+        .inventory {
+          grid-column: 1;
+          grid-row: 1;
+          gap: 6px;
+          flex-wrap: nowrap;
+        }
+
+        .game-menu.actions-collapsed .game-menu-actions {
+          grid-column: 2;
+          grid-row: 1;
+          justify-content: flex-end;
+        }
+
+        .game-menu.actions-collapsed .inventory {
+          grid-column: 1;
+          grid-row: 1;
+        }
+
+        .inventory-slots,
+        .inventory-actions {
+          gap: 6px;
+        }
+
+        .inventory-slot {
+          width: 36px;
+          height: 36px;
+          min-width: 36px;
+          min-height: 36px;
+        }
+
+        .inventory-separator {
+          width: 36px;
+          height: 36px;
+          min-width: 36px;
+          min-height: 36px;
+          flex-basis: 36px;
+        }
+
+        .inventory-separator img {
+          width: 26px;
+          height: 26px;
+        }
+
+        .inventory-action {
+          min-width: 64px;
+        }
+
+        .pad {
+          right: 10px;
+          bottom: 156px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="game" aria-label="Abbey Island Mystery adventure game"></canvas>
+    <div class="game-menu" aria-label="In-game menu">
+      <div class="game-menu-actions">
+        <button class="menu-toggle" id="menuActionsToggle" type="button" aria-label="Hide menu actions" aria-expanded="true">
+          <img class="toggle-collapse" src="assets/graphics/icon-collapse-actions.svg" alt="">
+          <img class="toggle-expand" src="assets/graphics/icon-expand-actions.svg" alt="">
+        </button>
+        <button class="menu-action" id="hudSaveGame" type="button">Save</button>
+        <button class="menu-action" id="hudLoadGame" type="button">Load</button>
+        <button class="menu-action" id="exitGame" type="button">Exit</button>
+        <button class="sound menu-action" id="sound" type="button" aria-label="Toggle sound" aria-pressed="false">
+          <img class="sound-on" src="assets/graphics/icon-speaker.svg" alt="">
+          <img class="sound-off" src="assets/graphics/icon-speaker-muted.svg" alt="">
+        </button>
+      </div>
+      <div class="inventory" id="inventory" aria-label="Inventory">
+        <div class="inventory-slots" aria-label="Inventory slots">
+          <button class="inventory-slot empty" type="button" data-inventory-slot="0" aria-label="Empty inventory slot"></button>
+          <button class="inventory-slot empty" type="button" data-inventory-slot="1" aria-label="Empty inventory slot"></button>
+          <button class="inventory-slot empty" type="button" data-inventory-slot="2" aria-label="Empty inventory slot"></button>
+          <button class="inventory-slot empty" type="button" data-inventory-slot="3" aria-label="Empty inventory slot"></button>
+          <button class="inventory-slot empty" type="button" data-inventory-slot="4" aria-label="Empty inventory slot"></button>
+          <button class="inventory-slot empty" type="button" data-inventory-slot="5" aria-label="Empty inventory slot"></button>
+        </div>
+        <button class="inventory-separator" id="inventoryCross" type="button" aria-label="Inventory action separator">
+          <img src="assets/graphics/icon-cross.svg" alt="">
+        </button>
+        <div class="inventory-actions" aria-label="Inventory actions">
+          <button class="inventory-action" id="useItem" type="button">Use</button>
+          <button class="inventory-action" id="consumeItem" type="button">Consume</button>
+          <button class="inventory-action" id="dropItem" type="button">Drop</button>
+          <button class="inventory-action" id="examineItem" type="button">Examine</button>
+        </div>
+      </div>
+    </div>
+    <section class="intro" id="intro" aria-label="Game intro">
+      <div class="intro-inner">
+        <div class="intro-title">
+          <span class="intro-kicker">A cloistered whodunit</span>
+          <h1>Abbey Island Mystery</h1>
+          <p>Enter the abbey, question the shadows, and follow the trail before the bell tolls again.</p>
+        </div>
+        <nav class="intro-menu" aria-label="Main menu">
+          <button class="primary" id="progressGame" type="button">Continue</button>
+          <button id="startGame" type="button">Load Game</button>
+          <button id="settingsGame" type="button">Settings</button>
+          <button id="loginGame" type="button">Logout</button>
+        </nav>
+      </div>
+    </section>
+    <section class="new-game-screen hidden" id="loadGameScreen" aria-label="Load game">
+      <div class="new-game-panel new-game-form">
+        <h2>Load Game</h2>
+        <div class="saved-game-list" id="loadGameList" aria-label="Saved games"></div>
+        <div class="new-game-status" id="loadGameStatus" role="status"></div>
+        <div class="new-game-actions">
+          <button id="cancelLoadGame" type="button">Back</button>
+          <button class="primary" id="createGameFromLoad" type="button">New Investigation</button>
+        </div>
+      </div>
+    </section>
+    <section class="new-game-screen hidden" id="newGameScreen" aria-label="New player setup">
+      <form class="new-game-panel new-game-form" id="newGameForm">
+        <h2>New Player - Create</h2>
+        <div class="new-game-field">
+          <label for="newPlayerName">Player Name</label>
+          <input id="newPlayerName" name="playerName" type="text" autocomplete="username" maxlength="32" required>
+        </div>
+        <div class="new-game-field">
+          <label for="newPlayerPassword">Set Password</label>
+          <input id="newPlayerPassword" name="playerPassword" type="password" autocomplete="new-password" maxlength="64" required>
+        </div>
+        <fieldset class="new-game-reset">
+          <legend>Reset For New Investigation</legend>
+          <label class="new-game-check">
+            <input id="resetPosition" name="resetPosition" type="checkbox" checked>
+            Starting position
+          </label>
+          <label class="new-game-check">
+            <input id="resetSaves" name="resetSaves" type="checkbox" checked>
+            Game saves
+          </label>
+          <label class="new-game-check">
+            <input id="resetInventory" name="resetInventory" type="checkbox" checked>
+            Inventory
+          </label>
+        </fieldset>
+        <div class="new-game-status" id="newGameStatus" role="status"></div>
+        <div class="new-game-actions">
+          <button id="cancelNewGame" type="button">Back</button>
+          <button class="primary" type="submit">Create Player</button>
+        </div>
+      </form>
+    </section>
+    <section class="new-game-screen login-screen hidden" id="loginScreen" aria-label="Login">
+      <form class="new-game-panel new-game-form login-panel" id="loginForm">
+        <h2>Login</h2>
+        <div class="new-game-field">
+          <label for="loginPlayerName">Player Name</label>
+          <input id="loginPlayerName" name="playerName" type="text" autocomplete="username" maxlength="32" required>
+        </div>
+        <div class="new-game-field">
+          <label for="loginPlayerPassword">Password</label>
+          <input id="loginPlayerPassword" name="playerPassword" type="password" autocomplete="current-password" maxlength="64" required>
+        </div>
+        <div class="new-game-status" id="loginStatus" role="status"></div>
+        <div class="new-game-actions">
+          <button id="cancelLogin" type="button">Back</button>
+          <button class="primary" type="submit">Login</button>
+        </div>
+      </form>
+    </section>
+    <div class="pad" aria-label="Touch movement controls">
+      <button class="up" type="button" data-pad="up" aria-label="Move up"><img src="assets/graphics/icon-arrow-up.svg" alt=""></button>
+      <button class="left" type="button" data-pad="left" aria-label="Move left"><img src="assets/graphics/icon-arrow-left.svg" alt=""></button>
+      <button class="right" type="button" data-pad="right" aria-label="Move right"><img src="assets/graphics/icon-arrow-right.svg" alt=""></button>
+      <button class="down" type="button" data-pad="down" aria-label="Move down"><img src="assets/graphics/icon-arrow-down.svg" alt=""></button>
+    </div>
+    <script src="web_game.js"></script>
+  </body>
+</html>
