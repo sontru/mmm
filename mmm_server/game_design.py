@@ -20,7 +20,7 @@ TILES = {
 }
 
 BUILDING_PLANS = [
-    {"id": "black-abbey", "name": "Black Abbey", "kind": "monastery", "x": 30, "y": 25, "w": 30, "h": 12},
+    {"id": "black-abbey", "name": "Black Forest Abbey", "kind": "monastery", "x": 30, "y": 25, "w": 30, "h": 12},
     {"id": "harbour-ship", "name": "Harbour Ship", "kind": "ship", "x": 45, "y": 10, "w": 4, "h": 4},
     {"id": "north-chapel", "name": "North Chapel", "kind": "house"},
     {"id": "west-manor", "name": "West Manor", "kind": "house"},
@@ -111,6 +111,20 @@ DESIGN_ZONES = [
         "parts": [
             {"name": "Barley Field", "x1": 44, "y1": 39, "x2": 51, "y2": 50},
             {"name": "Cross Paths", "x1": 47, "y1": 44, "x2": 47, "y2": 44},
+        ],
+    },
+    {
+        "id": "wheat-field",
+        "name": "Wheat Field",
+        "x1": 55,
+        "y1": 39,
+        "x2": 62,
+        "y2": 50,
+        "pathX": 58,
+        "pathY": 44,
+        "parts": [
+            {"name": "Wheat Field", "x1": 55, "y1": 39, "x2": 62, "y2": 50},
+            {"name": "Cross Paths", "x1": 58, "y1": 44, "x2": 58, "y2": 44},
         ],
     }
 ]
@@ -218,6 +232,7 @@ def generate_island():
     patch_lake_of_tears(tiles)
     patch_orchard_garden(tiles)
     patch_barley_field(tiles)
+    patch_wheat_field(tiles)
     patch_rock_double_line(tiles)
     patch_tall_rock_edges(tiles)
     patch_cave_entrances(tiles)
@@ -337,6 +352,15 @@ def patch_barley_field(tiles):
                 tiles[y][x] = TILES["sand"] if is_barley_field_path_tile(x, y) else TILES["grass"]
 
 
+def patch_wheat_field(tiles):
+    """Apply the Wheat Field terrain patch with cross paths."""
+    zone = DESIGN_ZONES[2]
+    for y in range(zone["y1"], zone["y2"] + 1):
+        for x in range(zone["x1"], zone["x2"] + 1):
+            if in_bounds(x, y):
+                tiles[y][x] = TILES["sand"] if is_wheat_field_path_tile(x, y) else TILES["grass"]
+
+
 def barley_field_area_for_tile(tile_x, tile_y):
     """Return the Barley Field zone if a tile is inside it."""
     zone = DESIGN_ZONES[1]
@@ -348,6 +372,20 @@ def barley_field_area_for_tile(tile_x, tile_y):
 def is_barley_field_path_tile(tile_x, tile_y):
     """Return whether a Barley Field tile belongs to the cross paths."""
     zone = barley_field_area_for_tile(tile_x, tile_y)
+    return bool(zone) and (tile_x == zone["pathX"] or tile_y == zone["pathY"])
+
+
+def wheat_field_area_for_tile(tile_x, tile_y):
+    """Return the Wheat Field zone if a tile is inside it."""
+    zone = DESIGN_ZONES[2]
+    if zone["x1"] <= tile_x <= zone["x2"] and zone["y1"] <= tile_y <= zone["y2"]:
+        return zone
+    return None
+
+
+def is_wheat_field_path_tile(tile_x, tile_y):
+    """Return whether a Wheat Field tile belongs to the cross paths."""
+    zone = wheat_field_area_for_tile(tile_x, tile_y)
     return bool(zone) and (tile_x == zone["pathX"] or tile_y == zone["pathY"])
 
 
@@ -404,7 +442,7 @@ def place_buildings(tiles):
     """Place authored and generated buildings onto the map."""
     monastery = {
         "id": "black-abbey",
-        "name": "Black Abbey",
+        "name": "Black Forest Abbey",
         "kind": "monastery",
         "x": 30,
         "y": 25,

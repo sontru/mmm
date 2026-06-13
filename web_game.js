@@ -84,6 +84,16 @@ const DESIGN_ZONES = {
     pathX: 47,
     pathY: 44,
   },
+  wheatField: {
+    id: "wheat-field",
+    name: "Wheat Field",
+    x1: 55,
+    y1: 39,
+    x2: 62,
+    y2: 50,
+    pathX: 58,
+    pathY: 44,
+  },
 };
 
 const CAVE_ENTRANCES = [
@@ -160,6 +170,49 @@ function barleyFieldAreaForTile(tileX, tileY) {
 function isBarleyFieldPathTile(tileX, tileY) {
   const zone = barleyFieldAreaForTile(tileX, tileY);
   return Boolean(zone) && (tileX === zone.pathX || tileY === zone.pathY);
+}
+
+function wheatFieldAreaForTile(tileX, tileY) {
+  const zone = DESIGN_ZONES.wheatField;
+  if (tileY < zone.y1 || tileY > zone.y2 || tileX < zone.x1 || tileX > zone.x2) {
+    return null;
+  }
+  return zone;
+}
+
+function isWheatFieldPathTile(tileX, tileY) {
+  const zone = wheatFieldAreaForTile(tileX, tileY);
+  return Boolean(zone) && (tileX === zone.pathX || tileY === zone.pathY);
+}
+
+function groundDescriptionForTile(tileX, tileY) {
+  const gardenArea = orchardGardenAreaForTile(tileX, tileY);
+  if (gardenArea) {
+    const zone = DESIGN_ZONES.orchardGarden;
+    return tileX <= zone.splitX ? "You are walking in the fruit orchard." : "You are walking in the vegetable garden.";
+  }
+  if (barleyFieldAreaForTile(tileX, tileY)) {
+    return "You are walking in the barley field.";
+  }
+  if (wheatFieldAreaForTile(tileX, tileY)) {
+    return "You are walking in the wheat field.";
+  }
+  return "";
+}
+
+function islandDirectionDescription(tileX, tileY) {
+  if (tileX < 0 || tileX >= MAP_WIDTH || tileY < 0 || tileY >= MAP_HEIGHT) {
+    return "";
+  }
+  const centerX = (MAP_WIDTH - 1) / 2;
+  const centerY = (MAP_HEIGHT - 1) / 2;
+  const horizontal = tileX < centerX - 8 ? "west" : tileX > centerX + 8 ? "east" : "";
+  const vertical = tileY < centerY - 6 ? "north" : tileY > centerY + 6 ? "south" : "";
+  const direction = [vertical, horizontal].filter(Boolean).join("-");
+  if (!direction) {
+    return "";
+  }
+  return `You are on the ${direction} side of the island.`;
 }
 
 const SHIP_BUILDING = {
@@ -573,11 +626,13 @@ class World {
     this.landPositions = [];
     for (let y = 0; y < MAP_HEIGHT; y += 1) {
       for (let x = 0; x < MAP_WIDTH; x += 1) {
+        const explicitlyOpen = this.blockingOverrides.get(x + "," + y) === false;
         const softBlocked = (
           (Boolean(orchardGardenAreaForTile(x, y)) && !isOrchardGardenPathTile(x, y)) ||
-          (Boolean(barleyFieldAreaForTile(x, y)) && !isBarleyFieldPathTile(x, y))
+          (Boolean(barleyFieldAreaForTile(x, y)) && !isBarleyFieldPathTile(x, y)) ||
+          (Boolean(wheatFieldAreaForTile(x, y)) && !isWheatFieldPathTile(x, y))
         );
-        if (!this.isTileBlocked(x, y) && !this.isBuildingTile(x, y) && !softBlocked) {
+        if (!this.isTileBlocked(x, y) && !this.isBuildingTile(x, y) && (!softBlocked || explicitlyOpen)) {
           this.landPositions.push({ x, y });
         }
       }
@@ -661,6 +716,7 @@ class World {
     this.patchLakeOfTears(tiles);
     this.patchOrchardGarden(tiles);
     this.patchBarleyField(tiles);
+    this.patchWheatField(tiles);
     this.patchRockDoubleLine(tiles);
     this.patchTallRockEdges(tiles);
     this.patchCaveEntrances(tiles);
@@ -799,6 +855,17 @@ class World {
     }
   }
 
+  patchWheatField(tiles) {
+    const zone = DESIGN_ZONES.wheatField;
+    for (let y = zone.y1; y <= zone.y2; y += 1) {
+      for (let x = zone.x1; x <= zone.x2; x += 1) {
+        if (this.inBounds(x, y)) {
+          tiles[y][x] = isWheatFieldPathTile(x, y) ? SAND : GRASS;
+        }
+      }
+    }
+  }
+
   carvePaths(tiles) {
     const center = { x: Math.floor(MAP_WIDTH / 2), y: Math.floor(MAP_HEIGHT / 2) };
     const targets = [
@@ -831,7 +898,7 @@ class World {
   placeBuildings() {
     const monastery = {
       id: "black-abbey",
-      name: "Black Abbey",
+      name: "Black Forest Abbey",
       kind: "monastery",
       x: 30,
       y: 25,
@@ -1123,6 +1190,10 @@ class World {
       };
     }
 
+    if (nearest?.type === "landmark") {
+      return nearest;
+    }
+
     for (const building of this.buildings) {
       const left = building.x * TILE_SIZE;
       const top = building.y * TILE_SIZE;
@@ -1290,7 +1361,11 @@ class World {
       return (
         (!terrainBlocked || ((boardableShip || caveEntrance) && !this.hasBlockingOverrideAtPixel(point.x, point.y))) &&
         !this.buildingAtPixel(point.x, point.y) &&
-        (!checksGardenCollision || (!this.isOrchardGardenBlockedPixel(point.x, point.y) && !this.isBarleyFieldBlockedPixel(point.x, point.y)))
+        (!checksGardenCollision || (
+          !this.isOrchardGardenBlockedPixel(point.x, point.y) &&
+          !this.isBarleyFieldBlockedPixel(point.x, point.y) &&
+          !this.isWheatFieldBlockedPixel(point.x, point.y)
+        ))
       );
     });
   }
@@ -1301,16 +1376,37 @@ class World {
     return this.blockingOverrides.has(tileX + "," + tileY);
   }
 
+  isExplicitlyOpenAtPixel(pixelX, pixelY) {
+    const tileX = Math.floor(pixelX / TILE_SIZE);
+    const tileY = Math.floor(pixelY / TILE_SIZE);
+    return this.blockingOverrides.get(tileX + "," + tileY) === false;
+  }
+
   isOrchardGardenBlockedPixel(pixelX, pixelY) {
+    if (this.isExplicitlyOpenAtPixel(pixelX, pixelY)) {
+      return false;
+    }
     const tileX = Math.floor(pixelX / TILE_SIZE);
     const tileY = Math.floor(pixelY / TILE_SIZE);
     return Boolean(orchardGardenAreaForTile(tileX, tileY)) && !isOrchardGardenPathTile(tileX, tileY);
   }
 
   isBarleyFieldBlockedPixel(pixelX, pixelY) {
+    if (this.isExplicitlyOpenAtPixel(pixelX, pixelY)) {
+      return false;
+    }
     const tileX = Math.floor(pixelX / TILE_SIZE);
     const tileY = Math.floor(pixelY / TILE_SIZE);
     return Boolean(barleyFieldAreaForTile(tileX, tileY)) && !isBarleyFieldPathTile(tileX, tileY);
+  }
+
+  isWheatFieldBlockedPixel(pixelX, pixelY) {
+    if (this.isExplicitlyOpenAtPixel(pixelX, pixelY)) {
+      return false;
+    }
+    const tileX = Math.floor(pixelX / TILE_SIZE);
+    const tileY = Math.floor(pixelY / TILE_SIZE);
+    return Boolean(wheatFieldAreaForTile(tileX, tileY)) && !isWheatFieldPathTile(tileX, tileY);
   }
 
   touchesLand(tileX, tileY) {
@@ -1973,6 +2069,7 @@ class World {
       drawGrass(x, y, tileX, tileY);
       this.drawOrchardGardenDetail(x, y, tileX, tileY);
       this.drawBarleyFieldDetail(x, y, tileX, tileY);
+      this.drawWheatFieldDetail(x, y, tileX, tileY);
     } else if (tile === FOREST) {
       const tree = images.trees[Math.abs(tileX * 17 + tileY * 11) % images.trees.length];
       if (!drawAsset(tree, x, y - 16, TILE_SIZE, TILE_SIZE + 16)) {
@@ -2176,6 +2273,26 @@ class World {
       line(stalkX + 3, y + 18, stalkX - 3, y + 14);
       line(stalkX + 2, y + 23, stalkX + 8, y + 19);
       stroke("#b59b52", 2);
+    }
+  }
+
+  drawWheatFieldDetail(x, y, tileX, tileY) {
+    const zone = DESIGN_ZONES.wheatField;
+    if (tileX < zone.x1 || tileX > zone.x2 || tileY < zone.y1 || tileY > zone.y2 || isWheatFieldPathTile(tileX, tileY)) {
+      return;
+    }
+
+    fill("rgba(78, 82, 83, 0.34)");
+    renderCtx.fillRect(x + 3, y + 3, TILE_SIZE - 6, TILE_SIZE - 6);
+    stroke("#9fa6a4", 2);
+    for (let col = 0; col < 4; col += 1) {
+      const stalkX = x + 9 + col * 9 + ((tileX * 2 + tileY + col) % 4);
+      line(stalkX, y + 39, stalkX + 2, y + 12);
+      stroke("#c4cbc9", 1.5);
+      line(stalkX + 2, y + 17, stalkX - 4, y + 13);
+      line(stalkX + 2, y + 21, stalkX + 8, y + 16);
+      line(stalkX + 1, y + 25, stalkX - 4, y + 21);
+      stroke("#9fa6a4", 2);
     }
   }
 }
@@ -2496,6 +2613,12 @@ function currentDialogue() {
       text: "Swimming in the Lake of Tears",
     };
   }
+  if (world.hidesPlayer(player.rect)) {
+    return {
+      speaker,
+      text: "The south Towers loom tall casting shadows that hide you from view...",
+    };
+  }
 
   const location = world.locationNearPixel(player.rect.x + player.rect.w / 2, player.rect.y + player.rect.h);
   if (location?.type === "entrance") {
@@ -2505,23 +2628,45 @@ function currentDialogue() {
     };
   }
 
+  if (location?.type === "landmark") {
+    return {
+      speaker,
+      text: `You are near the ${location.name}.`,
+    };
+  }
+
+  const groundDescription = groundDescriptionForTile(footTileX, footTileY);
+  if (groundDescription) {
+    return {
+      speaker,
+      text: groundDescription,
+    };
+  }
+
   if (location?.type === "building") {
+    if (location.buildingKind === "monastery") {
+      return {
+        speaker,
+        text: "The abbey grounds are onminously gloomy...",
+      };
+    }
     return {
       speaker,
       text: location.name,
     };
   }
 
-  if (location?.type === "landmark") {
+  const directionDescription = islandDirectionDescription(footTileX, footTileY);
+  if (directionDescription) {
     return {
       speaker,
-      text: location.name,
+      text: directionDescription,
     };
   }
 
   return {
     speaker,
-    text: "The abbey grounds are quiet tonight. Every doorway feels like it is holding its breath.",
+    text: "The island is quiet and mysterious...",
   };
 }
 

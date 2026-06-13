@@ -77,6 +77,14 @@ DESIGN_ZONES = {
         "path_x": 47,
         "path_y": 44,
     },
+    "wheat_field": {
+        "x1": 55,
+        "y1": 39,
+        "x2": 62,
+        "y2": 50,
+        "path_x": 58,
+        "path_y": 44,
+    },
 }
 
 CAVE_ENTRANCES = (
@@ -107,6 +115,7 @@ class World:
                 and not self.is_building_tile(x, y)
                 and not (self._orchard_garden_area_for_tile(x, y) and not self._is_orchard_garden_path_tile(x, y))
                 and not (self._barley_field_area_for_tile(x, y) and not self._is_barley_field_path_tile(x, y))
+                and not (self._wheat_field_area_for_tile(x, y) and not self._is_wheat_field_path_tile(x, y))
             )
         ]
 
@@ -152,6 +161,7 @@ class World:
         self._patch_lake_of_tears(tiles)
         self._patch_orchard_garden(tiles)
         self._patch_barley_field(tiles)
+        self._patch_wheat_field(tiles)
         self._patch_rock_double_line(tiles)
         self._patch_tall_rock_edges(tiles)
         self._patch_cave_entrances(tiles)
@@ -325,6 +335,26 @@ class World:
         zone = self._barley_field_area_for_tile(tile_x, tile_y)
         return bool(zone) and (tile_x == zone["path_x"] or tile_y == zone["path_y"])
 
+    def _patch_wheat_field(self, tiles):
+        """Apply the Wheat Field terrain patch with cross paths."""
+        zone = DESIGN_ZONES["wheat_field"]
+        for y in range(zone["y1"], zone["y2"] + 1):
+            for x in range(zone["x1"], zone["x2"] + 1):
+                if self.in_bounds(x, y):
+                    tiles[y][x] = SAND if self._is_wheat_field_path_tile(x, y) else GRASS
+
+    def _wheat_field_area_for_tile(self, tile_x, tile_y):
+        """Return the Wheat Field zone if a tile is inside it."""
+        zone = DESIGN_ZONES["wheat_field"]
+        if zone["x1"] <= tile_x <= zone["x2"] and zone["y1"] <= tile_y <= zone["y2"]:
+            return zone
+        return None
+
+    def _is_wheat_field_path_tile(self, tile_x, tile_y):
+        """Return whether a Wheat Field tile belongs to the cross paths."""
+        zone = self._wheat_field_area_for_tile(tile_x, tile_y)
+        return bool(zone) and (tile_x == zone["path_x"] or tile_y == zone["path_y"])
+
     def _place_buildings(self):
         """Place authored and generated buildings in the desktop world."""
         buildings = [dict(SHIP_BUILDING)]
@@ -485,6 +515,9 @@ class World:
                 "name": LAKE_OF_TEARS["name"],
             }
 
+        if nearest and nearest["type"] == "landmark":
+            return nearest
+
         for building in self.buildings:
             left = building["x"] * TILE_SIZE
             top = building["y"] * TILE_SIZE
@@ -582,6 +615,7 @@ class World:
                 or (
                     not self._is_orchard_garden_blocked_pixel(x, y)
                     and not self._is_barley_field_blocked_pixel(x, y)
+                    and not self._is_wheat_field_blocked_pixel(x, y)
                 )
             )
             for x, y in sample_points
@@ -598,6 +632,12 @@ class World:
         tile_x = int(pixel_x // TILE_SIZE)
         tile_y = int(pixel_y // TILE_SIZE)
         return bool(self._barley_field_area_for_tile(tile_x, tile_y)) and not self._is_barley_field_path_tile(tile_x, tile_y)
+
+    def _is_wheat_field_blocked_pixel(self, pixel_x, pixel_y):
+        """Return whether a Wheat Field pixel blocks movement."""
+        tile_x = int(pixel_x // TILE_SIZE)
+        tile_y = int(pixel_y // TILE_SIZE)
+        return bool(self._wheat_field_area_for_tile(tile_x, tile_y)) and not self._is_wheat_field_path_tile(tile_x, tile_y)
 
     def draw(self, surface, camera):
         """Draw the object using the active camera or surface context."""
@@ -656,6 +696,7 @@ class World:
         elif tile == GRASS:
             self._draw_grass(surface, rect, tile_x, tile_y)
             self._draw_barley_field_detail(surface, rect, tile_x, tile_y)
+            self._draw_wheat_field_detail(surface, rect, tile_x, tile_y)
         elif tile == FOREST:
             self._draw_tree(surface, rect, tile_x, tile_y)
         elif tile == ROCK:
@@ -872,6 +913,22 @@ class World:
             pygame.draw.line(surface, (181, 155, 82), (stalk_x, rect.top + 38), (stalk_x + 3, rect.top + 13), 2)
             pygame.draw.line(surface, (208, 185, 106), (stalk_x + 3, rect.top + 18), (stalk_x - 3, rect.top + 14), 2)
             pygame.draw.line(surface, (208, 185, 106), (stalk_x + 2, rect.top + 23), (stalk_x + 8, rect.top + 19), 2)
+
+    def _draw_wheat_field_detail(self, surface, rect, tile_x, tile_y):
+        """Draw rows of wheat in non-path Wheat Field tiles."""
+        zone = DESIGN_ZONES["wheat_field"]
+        if not (zone["x1"] <= tile_x <= zone["x2"] and zone["y1"] <= tile_y <= zone["y2"]):
+            return
+        if self._is_wheat_field_path_tile(tile_x, tile_y):
+            return
+
+        pygame.draw.rect(surface, (74, 80, 80), rect.inflate(-6, -6))
+        for col in range(4):
+            stalk_x = rect.left + 9 + col * 9 + ((tile_x * 2 + tile_y + col) % 4)
+            pygame.draw.line(surface, (159, 166, 164), (stalk_x, rect.top + 39), (stalk_x + 2, rect.top + 12), 2)
+            pygame.draw.line(surface, (196, 203, 201), (stalk_x + 2, rect.top + 17), (stalk_x - 4, rect.top + 13), 2)
+            pygame.draw.line(surface, (196, 203, 201), (stalk_x + 2, rect.top + 21), (stalk_x + 8, rect.top + 16), 2)
+            pygame.draw.line(surface, (196, 203, 201), (stalk_x + 1, rect.top + 25), (stalk_x - 4, rect.top + 21), 2)
 
     def _draw_buildings(self, surface, camera):
         """Draw all visible buildings in the desktop renderer."""
@@ -1244,6 +1301,35 @@ def wrapped_lines(font, text, max_width):
     return lines
 
 
+def ground_description_for_tile(world, tile_x, tile_y):
+    """Return contextual text for authored gardens and fields."""
+    garden_area = world._orchard_garden_area_for_tile(tile_x, tile_y)
+    if garden_area:
+        zone = DESIGN_ZONES["orchard_garden"]
+        if tile_x <= zone["split_x"]:
+            return "You are walking in the fruit orchard."
+        return "You are walking in the vegetable garden."
+    if world._barley_field_area_for_tile(tile_x, tile_y):
+        return "You are walking in the barley field."
+    if world._wheat_field_area_for_tile(tile_x, tile_y):
+        return "You are walking in the wheat field."
+    return ""
+
+
+def island_direction_description(tile_x, tile_y):
+    """Return directional island context for a tile."""
+    if not (0 <= tile_x < MAP_WIDTH and 0 <= tile_y < MAP_HEIGHT):
+        return ""
+    center_x = (MAP_WIDTH - 1) / 2
+    center_y = (MAP_HEIGHT - 1) / 2
+    horizontal = "west" if tile_x < center_x - 8 else "east" if tile_x > center_x + 8 else ""
+    vertical = "north" if tile_y < center_y - 6 else "south" if tile_y > center_y + 6 else ""
+    direction = "-".join(part for part in (vertical, horizontal) if part)
+    if not direction:
+        return ""
+    return f"You are on the {direction} side of the island."
+
+
 def current_dialogue(world, player):
     """Choose the current dialogue text from nearby world context."""
     foot_tile_x = player.rect.centerx // TILE_SIZE
@@ -1270,19 +1356,40 @@ def current_dialogue(world, player):
             PLAYER_NAME,
             f"{location['building_name']}: {location['name']}",
         )
-    if location and location["type"] == "building":
-        return (
-            PLAYER_NAME,
-            location["name"],
-        )
     if location and location["type"] == "landmark":
         return (
             PLAYER_NAME,
+            f"You are near the {location['name']}.",
+        )
+
+    ground_description = ground_description_for_tile(world, foot_tile_x, foot_tile_y)
+    if ground_description:
+        return (
+            PLAYER_NAME,
+            ground_description,
+        )
+
+    if location and location["type"] == "building":
+        if location.get("building_kind") == "monastery":
+            return (
+                PLAYER_NAME,
+                "The abbey grounds are onminously gloomy...",
+            )
+        return (
+            PLAYER_NAME,
             location["name"],
         )
+
+    direction_description = island_direction_description(foot_tile_x, foot_tile_y)
+    if direction_description:
+        return (
+            PLAYER_NAME,
+            direction_description,
+        )
+
     return (
         PLAYER_NAME,
-        "The abbey grounds are quiet tonight. Every doorway feels like it is holding its breath.",
+        "The island is quiet and mysterious...",
     )
 
 

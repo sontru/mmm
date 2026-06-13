@@ -216,6 +216,7 @@ def admin_page():
         <label><input type="checkbox" data-layer="grid" checked>Grid</label>
         <label><input type="checkbox" data-layer="zones" checked>Zones</label>
         <label><input type="checkbox" data-layer="buildings" checked>Buildings</label>
+        <label><input type="checkbox" data-layer="landmarks" checked>Landmarks</label>
         <label><input type="checkbox" data-layer="entrances" checked>Entrances</label>
         <label><input type="checkbox" data-layer="blocking" checked>Blocking</label>
         <label><input type="checkbox" data-layer="start" checked>Start</label>
@@ -330,6 +331,7 @@ def admin_page():
       grid: true,
       zones: true,
       buildings: true,
+      landmarks: true,
       entrances: true,
       blocking: true,
       start: true,
@@ -418,6 +420,7 @@ def admin_page():
       if (mapLayers.grid) drawGrid(tile, map.width, map.height);
       if (mapLayers.zones) drawZones(design.zones || [], tile);
       if (mapLayers.buildings) drawBuildings(design.buildings, tile);
+      if (mapLayers.landmarks) drawLandmarks(design.landmarks || [], tile);
       if (mapLayers.entrances) drawCaveEntrances(design.caveEntrances || [], tile);
       if (mapLayers.start) drawStartMarker(design.start, tile);
       if (mapLayers.blocking) drawBlockingOverrides(tile);
@@ -646,6 +649,61 @@ def admin_page():
           ctx.fillText(part.name, partX + 6, partY + 5);
         }
       }
+    }
+
+    function drawLandmarks(landmarks, tile) {
+      ctx.textBaseline = "top";
+      ctx.font = "700 11px system-ui";
+      for (const landmark of landmarks) {
+        const isRect = Number.isFinite(landmark.x1) && Number.isFinite(landmark.y1) && Number.isFinite(landmark.x2) && Number.isFinite(landmark.y2);
+        const label = isRect
+          ? landmark.name + " · " + landmark.x1 + "," + landmark.y1 + " to " + landmark.x2 + "," + landmark.y2
+          : landmark.name + " · " + landmark.x + "," + landmark.y;
+
+        if (isRect) {
+          const x = landmark.x1 * tile;
+          const y = landmark.y1 * tile;
+          const w = (landmark.x2 - landmark.x1 + 1) * tile;
+          const h = (landmark.y2 - landmark.y1 + 1) * tile;
+          ctx.fillStyle = "rgba(71, 127, 170, 0.18)";
+          ctx.fillRect(x, y, w, h);
+          ctx.strokeStyle = "#8fd3ff";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+          drawMapLabel(label, x + 6, y + 6, "#dff4ff", "rgba(7, 18, 28, 0.86)", "rgba(143, 211, 255, 0.72)");
+          continue;
+        }
+
+        const x = landmark.x * tile;
+        const y = landmark.y * tile;
+        ctx.fillStyle = "rgba(11, 15, 17, 0.78)";
+        ctx.beginPath();
+        ctx.arc(x, y, 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#f0d36b";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = "#9dd8d1";
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        drawMapLabel(label, x + 12, y - 13, "#fff4c5", "rgba(11, 15, 17, 0.88)", "rgba(240, 211, 107, 0.72)");
+      }
+    }
+
+    function drawMapLabel(label, x, y, fillColor, backgroundColor, borderColor) {
+      const paddingX = 7;
+      const labelWidth = ctx.measureText(label).width + paddingX * 2;
+      const labelHeight = 24;
+      const labelX = Math.max(4, Math.min(x, canvas.width - labelWidth - 4));
+      const labelY = Math.max(4, Math.min(y, canvas.height - labelHeight - 4));
+      ctx.fillStyle = backgroundColor;
+      ctx.fillRect(labelX, labelY, labelWidth, labelHeight);
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(labelX + 0.5, labelY + 0.5, labelWidth - 1, labelHeight - 1);
+      ctx.fillStyle = fillColor;
+      ctx.fillText(label, labelX + paddingX, labelY + 6);
     }
 
     function drawCaveEntrances(entrances, tile) {
