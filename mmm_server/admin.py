@@ -112,9 +112,13 @@ def admin_page():
 
     /* Live map and map editing controls */
     .map-panel { margin-top: 12px; padding: 0; overflow: hidden; }
-    .map-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-bottom: 1px solid #344148; }
-    .legend { display: flex; flex-wrap: wrap; gap: 10px; color: #b9c4bd; font-size: 13px; }
-    .legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .map-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 10px 18px; padding: 12px 14px; border-bottom: 1px solid #344148; }
+    .map-toolbar h2 { flex: 0 0 auto; margin-bottom: 0; }
+    .legend { flex: 1 1 720px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: #b9c4bd; font-size: 13px; }
+    .legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+    .legend label { white-space: nowrap; }
+    .legend select { min-width: 160px; padding: 5px 7px; border: 1px solid #425157; border-radius: 6px; background: #0b1114; color: #edf0e8; }
+    #mapCoords { flex: 0 0 330px; justify-content: flex-end; overflow: hidden; text-align: right; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
     .swatch { width: 13px; height: 13px; border: 1px solid rgba(255,255,255,.22); }
     .map-layers { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 14px; border-bottom: 1px solid #344148; color: #cfd8cd; font-size: 13px; }
     .map-layers strong { color: #edf0e8; }
@@ -201,6 +205,10 @@ def admin_page():
       <div class="map-toolbar">
         <h2>Half-Scale Live Map</h2>
         <div class="legend">
+          <label for="roomAreaSelect">Room</label>
+          <select id="roomAreaSelect">
+            <option value="main">Main Map</option>
+          </select>
           <span><i class="swatch" style="background:#172c45"></i>Water</span>
           <span><i class="swatch" style="background:#6f6555"></i>Sand</span>
           <span><i class="swatch" style="background:#263925"></i>Grass</span>
@@ -285,6 +293,8 @@ def admin_page():
     const canvas = document.getElementById("adminMap");
     const ctx = canvas.getContext("2d");
     const mapCoords = document.getElementById("mapCoords");
+    const mapScroll = document.querySelector(".map-scroll");
+    const roomAreaSelect = document.getElementById("roomAreaSelect");
     const mapLayerToggles = document.getElementById("mapLayerToggles");
     const editModeToggle = document.getElementById("editModeToggle");
     const tilePaintSelect = document.getElementById("tilePaintSelect");
@@ -327,6 +337,9 @@ def admin_page():
     let activeCodePath = "";
     let codeDirty = false;
     let savingCode = false;
+    let activeRoomId = "main";
+    let activeRoomRect = null;
+    let activeRoomEntranceRect = null;
     const mapLayers = {
       grid: true,
       zones: true,
@@ -377,6 +390,7 @@ def admin_page():
         if (!seen.has(name)) players.delete(name);
       }
       renderTilePaintOptions();
+      renderRoomOptions();
       loadTileImages(next.design.tileOptions || []);
       updateEditControls();
     }
@@ -427,12 +441,154 @@ def admin_page():
       if (mapLayers.selection) drawSelectedTiles(tile);
       if (mapLayers.hover) drawHoverTile(tile);
       if (mapLayers.players) drawPlayers(scale);
+      if (activeRoomId !== "main") drawActiveRoomOverlay(design, tile);
       requestAnimationFrame(draw);
     }
 
     // ---------------------------------------------------------------------
     // Map rendering layers
     // ---------------------------------------------------------------------
+
+    function renderRoomOptions() {
+      const rooms = summary.design.rooms || [];
+      const signature = JSON.stringify(rooms.map((room) => [room.id, room.name]));
+      if (roomAreaSelect.dataset.signature === signature) {
+        return;
+      }
+      const current = roomAreaSelect.value || activeRoomId;
+      roomAreaSelect.dataset.signature = signature;
+      roomAreaSelect.innerHTML = "";
+
+      const mainOption = document.createElement("option");
+      mainOption.value = "main";
+      mainOption.textContent = "Main Map";
+      roomAreaSelect.appendChild(mainOption);
+
+      for (const room of rooms) {
+        const option = document.createElement("option");
+        option.value = room.id;
+        option.textContent = room.name;
+        roomAreaSelect.appendChild(option);
+      }
+
+      roomAreaSelect.value = rooms.some((room) => room.id === current) ? current : "main";
+      activeRoomId = roomAreaSelect.value;
+    }
+
+    function activeRoom() {
+      return (summary.design.rooms || []).find((room) => room.id === activeRoomId) || null;
+    }
+
+    function drawActiveRoomOverlay(design, tile) {
+      const room = activeRoom();
+      if (!room) {
+        activeRoomRect = null;
+        activeRoomEntranceRect = null;
+        return;
+      }
+
+      ctx.save();
+      ctx.fillStyle = "rgba(6, 8, 11, 0.56)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const roomTile = Math.max(18, Math.min(34, Math.floor(Math.min(canvas.width / (room.width + 5), canvas.height / (room.height + 5)))));
+      const roomW = room.width * roomTile;
+      const roomH = room.height * roomTile;
+      const roomX = Math.round((canvas.width - roomW) / 2);
+      const roomY = Math.round((canvas.height - roomH) / 2);
+      activeRoomRect = { x: roomX, y: roomY, w: roomW, h: roomH, tile: roomTile, room };
+
+      ctx.fillStyle = "rgba(12, 15, 20, 0.94)";
+      ctx.fillRect(roomX - 18, roomY - 52, roomW + 36, roomH + 76);
+      ctx.strokeStyle = "rgba(235, 226, 176, 0.88)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(roomX - 17.5, roomY - 51.5, roomW + 35, roomH + 75);
+
+      drawRoomTiles(room, roomX, roomY, roomTile);
+      drawRoomFixtures(room, roomX, roomY, roomTile);
+      drawRoomEntrance(room, roomX, roomY, roomTile);
+
+      ctx.fillStyle = "#fff4c5";
+      ctx.font = "700 15px system-ui";
+      ctx.fillText(room.name + " · " + room.id, roomX, roomY - 34);
+      ctx.fillStyle = "#b9c4bd";
+      ctx.font = "12px system-ui";
+      ctx.fillText("Click the gangway entrance to return to the main map.", roomX, roomY - 15);
+      ctx.restore();
+    }
+
+    function drawRoomTiles(room, roomX, roomY, roomTile) {
+      for (let y = 0; y < room.height; y += 1) {
+        for (let x = 0; x < room.width; x += 1) {
+          const px = roomX + x * roomTile;
+          const py = roomY + y * roomTile;
+          const isWall = x === 0 || y === 0 || x === room.width - 1 || y === room.height - 1;
+          ctx.fillStyle = isWall ? "#241922" : ((x + y) % 2 === 0 ? "#4b3427" : "#563b2b");
+          ctx.fillRect(px, py, roomTile, roomTile);
+          ctx.strokeStyle = isWall ? "rgba(125, 106, 87, 0.44)" : "rgba(28, 18, 14, 0.55)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px + 0.5, py + 0.5, roomTile - 1, roomTile - 1);
+        }
+      }
+    }
+
+    function drawRoomFixtures(room, roomX, roomY, roomTile) {
+      for (const fixture of room.fixtures || []) {
+        const x = roomX + fixture.x * roomTile;
+        const y = roomY + fixture.y * roomTile;
+        const w = fixture.w * roomTile;
+        const h = fixture.h * roomTile;
+        if (fixture.kind === "crate") {
+          ctx.fillStyle = "#5e412b";
+          ctx.fillRect(x + 3, y + 5, w - 6, h - 10);
+          ctx.strokeStyle = "#2f2016";
+          ctx.strokeRect(x + 3.5, y + 5.5, w - 7, h - 11);
+          ctx.strokeStyle = "#8b6840";
+          ctx.beginPath();
+          ctx.moveTo(x + 8, y + 10);
+          ctx.lineTo(x + w - 8, y + h - 10);
+          ctx.moveTo(x + w - 8, y + 10);
+          ctx.lineTo(x + 8, y + h - 10);
+          ctx.stroke();
+        } else if (fixture.kind === "table") {
+          ctx.fillStyle = "#2c2024";
+          ctx.fillRect(x + 4, y + 6, w - 8, h - 12);
+          ctx.strokeStyle = "#8d7650";
+          ctx.strokeRect(x + 8.5, y + 10.5, w - 17, h - 21);
+        } else if (fixture.kind === "porthole") {
+          ctx.fillStyle = "#16131a";
+          ctx.fillRect(x, y, w, h);
+          ctx.strokeStyle = "#6f5b4a";
+          ctx.beginPath();
+          ctx.arc(x + w / 2, y + h / 2, Math.max(6, roomTile * 0.25), 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+    }
+
+    function drawRoomEntrance(room, roomX, roomY, roomTile) {
+      const entrance = room.entrance;
+      if (!entrance) {
+        activeRoomEntranceRect = null;
+        return;
+      }
+      const x = roomX + entrance.x * roomTile;
+      const y = roomY + entrance.y * roomTile;
+      const w = entrance.w * roomTile;
+      const h = entrance.h * roomTile;
+      activeRoomEntranceRect = { x, y, w, h };
+
+      ctx.fillStyle = "#8b6840";
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = "#f0d36b";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+      ctx.fillStyle = "#f0d36b";
+      ctx.beginPath();
+      ctx.arc(x + w / 2, y + h / 2, 5, 0, Math.PI * 2);
+      ctx.fill();
+      drawMapLabel(entrance.name + " · exit to main map", x + 4, y + h + 6, "#fff4c5", "rgba(11, 15, 17, 0.88)", "rgba(240, 211, 107, 0.72)");
+    }
 
     function drawGrid(tile, width, height) {
       ctx.strokeStyle = "rgba(255,255,255,0.035)";
@@ -836,6 +992,20 @@ def admin_page():
       const rect = canvas.getBoundingClientRect();
       const canvasX = (event.clientX - rect.left) * (canvas.width / rect.width);
       const canvasY = (event.clientY - rect.top) * (canvas.height / rect.height);
+      if (activeRoomId !== "main" && activeRoomRect) {
+        const localX = canvasX - activeRoomRect.x;
+        const localY = canvasY - activeRoomRect.y;
+        if (localX >= 0 && localX < activeRoomRect.w && localY >= 0 && localY < activeRoomRect.h) {
+          const roomX = Math.floor(localX / activeRoomRect.tile);
+          const roomY = Math.floor(localY / activeRoomRect.tile);
+          hoverTile = null;
+          mapCoords.textContent = "Room " + activeRoomRect.room.name + " · Tile " + roomX + ", " + roomY;
+          return;
+        }
+        hoverTile = null;
+        mapCoords.textContent = "Room " + activeRoomRect.room.name + " · backdrop";
+        return;
+      }
       const worldX = Math.max(0, Math.min(map.pixelWidth - 1, Math.floor(canvasX / map.adminScale)));
       const worldY = Math.max(0, Math.min(map.pixelHeight - 1, Math.floor(canvasY / map.adminScale)));
       const tileX = Math.floor(worldX / map.tileSize);
@@ -897,6 +1067,10 @@ def admin_page():
     }
 
     function selectMapTile(event) {
+      if (activeRoomId !== "main") {
+        handleRoomPointer(event);
+        return;
+      }
       if (!editMode) return;
       const tile = tileFromPointer(event);
       if (!tile) return;
@@ -910,6 +1084,45 @@ def admin_page():
         selectedTiles.add(tile.key);
       }
       updateEditControls();
+    }
+
+    function handleRoomPointer(event) {
+      if (!activeRoomEntranceRect) return;
+      const rect = canvas.getBoundingClientRect();
+      const canvasX = (event.clientX - rect.left) * (canvas.width / rect.width);
+      const canvasY = (event.clientY - rect.top) * (canvas.height / rect.height);
+      const insideEntrance = (
+        canvasX >= activeRoomEntranceRect.x &&
+        canvasX <= activeRoomEntranceRect.x + activeRoomEntranceRect.w &&
+        canvasY >= activeRoomEntranceRect.y &&
+        canvasY <= activeRoomEntranceRect.y + activeRoomEntranceRect.h
+      );
+      if (!insideEntrance) return;
+      event.preventDefault();
+      activeRoomId = "main";
+      roomAreaSelect.value = "main";
+      activeRoomRect = null;
+      activeRoomEntranceRect = null;
+      mapCoords.textContent = "Exited room · Main map";
+    }
+
+    function changeRoomArea() {
+      activeRoomId = roomAreaSelect.value || "main";
+      selectedTiles.clear();
+      hoverTile = null;
+      activeRoomRect = null;
+      activeRoomEntranceRect = null;
+      updateEditControls();
+      if (activeRoomId === "main") {
+        mapCoords.textContent = "Tile -, - · Pixel -, -";
+      } else {
+        const room = activeRoom();
+        mapCoords.textContent = "Room " + (room?.name || activeRoomId);
+        requestAnimationFrame(() => {
+          mapScroll.scrollLeft = Math.max(0, (canvas.width - mapScroll.clientWidth) / 2);
+          mapScroll.scrollTop = Math.max(0, (canvas.height - mapScroll.clientHeight) / 2);
+        });
+      }
     }
 
     function applyPaintToSelection() {
@@ -999,9 +1212,10 @@ def admin_page():
     function updateEditControls() {
       editModeToggle.textContent = editMode ? "Leave Edit Mode" : "Enter Edit Mode";
       editModeToggle.disabled = savingEdits;
-      applyTilePaint.disabled = !editMode || !selectedTiles.size || savingEdits;
-      applyBlocking.disabled = !editMode || !selectedTiles.size || savingEdits;
-      clearSelection.disabled = !editMode || !selectedTiles.size || savingEdits;
+      const roomSelected = activeRoomId !== "main";
+      applyTilePaint.disabled = roomSelected || !editMode || !selectedTiles.size || savingEdits;
+      applyBlocking.disabled = roomSelected || !editMode || !selectedTiles.size || savingEdits;
+      clearSelection.disabled = roomSelected || !editMode || !selectedTiles.size || savingEdits;
       selectionCount.textContent = selectedTiles.size + " selected";
     }
 
@@ -1330,6 +1544,7 @@ def admin_page():
     editModeToggle.addEventListener("click", toggleEditMode);
     applyTilePaint.addEventListener("click", applyPaintToSelection);
     applyBlocking.addEventListener("click", applyBlockingToSelection);
+    roomAreaSelect.addEventListener("change", changeRoomArea);
     mapLayerToggles.addEventListener("change", updateMapLayer);
     clearSelection.addEventListener("click", () => {
       selectedTiles.clear();

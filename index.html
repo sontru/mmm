@@ -347,6 +347,98 @@
         font-size: 16px;
       }
 
+      .prologue-screen {
+        place-items: stretch;
+        overflow: hidden;
+        padding: clamp(18px, 4vw, 42px);
+        background:
+          linear-gradient(90deg, rgba(8, 10, 13, 0.94), rgba(8, 10, 13, 0.76) 48%, rgba(8, 10, 13, 0.46)),
+          linear-gradient(180deg, rgba(8, 10, 13, 0.18), rgba(8, 10, 13, 0.92)),
+          url("assets/graphics/nun.jpeg") center 34% / cover no-repeat;
+      }
+
+      .prologue-panel {
+        align-self: center;
+        display: grid;
+        grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+        width: min(760px, 100%);
+        max-height: calc(100vh - 56px);
+        overflow: hidden;
+        padding: clamp(18px, 3vw, 28px);
+        border-color: rgba(235, 226, 176, 0.9);
+        background: rgba(13, 15, 19, 0.94);
+      }
+
+      .prologue-panel h2 {
+        margin-bottom: 2px;
+        font-size: clamp(40px, 7vw, 70px);
+        line-height: 0.92;
+      }
+
+      .prologue-panel h3 {
+        margin: 18px 0 8px;
+        color: #fff7d6;
+        font: 400 34px/1 "Creepster", Arial, Helvetica, sans-serif;
+      }
+
+      .prologue-kicker,
+      .prologue-date {
+        color: #d7c47c;
+        font-size: 22px;
+      }
+
+      .prologue-date {
+        margin-top: 14px;
+      }
+
+      .prologue-copy {
+        margin-top: 14px;
+        min-height: 0;
+        overflow: hidden;
+        color: #eee7cd;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(16px, 2vw, 18px);
+        line-height: 1.55;
+      }
+
+      .prologue-copy p {
+        margin: 0 0 12px;
+      }
+
+      .prologue-copy .beat {
+        color: #fff8d8;
+        font-weight: 700;
+      }
+
+      .prologue-objective {
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(235, 226, 176, 0.38);
+      }
+
+      .prologue-objective p {
+        margin-bottom: 6px;
+      }
+
+      .prologue-page-status {
+        align-self: center;
+        margin-right: auto;
+        color: #d8d2b6;
+        font-size: 16px;
+      }
+
+      .prologue-actions {
+        align-items: center;
+        flex-wrap: nowrap;
+      }
+
+      .new-game-actions button:disabled {
+        border-color: rgba(173, 169, 151, 0.42);
+        background: rgba(75, 76, 82, 0.58);
+        color: rgba(245, 244, 232, 0.42);
+        cursor: not-allowed;
+      }
+
       .login-panel {
         width: min(430px, 100%);
         margin-right: auto;
@@ -641,6 +733,39 @@
           width: 100%;
         }
 
+        .prologue-panel {
+          max-height: calc(100vh - 36px);
+        }
+
+        .prologue-panel h2 {
+          font-size: 38px;
+        }
+
+        .prologue-kicker,
+        .prologue-date {
+          font-size: 19px;
+        }
+
+        .prologue-copy {
+          font-size: 15px;
+          line-height: 1.45;
+        }
+
+        .prologue-copy p {
+          margin-bottom: 9px;
+        }
+
+        .prologue-actions {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .prologue-page-status {
+          grid-column: 1 / -1;
+          margin: 0;
+          text-align: center;
+        }
+
         .game-menu {
           left: 10px;
           right: 10px;
@@ -766,6 +891,7 @@
           <button id="startGame" type="button">Load Game</button>
           <button id="settingsGame" type="button">Settings</button>
           <button id="loginGame" type="button">Logout</button>
+          <div class="intro-status" id="introStatus" role="status"></div>
         </nav>
       </div>
     </section>
@@ -812,6 +938,20 @@
           <button class="primary" type="submit">Create Player</button>
         </div>
       </form>
+    </section>
+    <section class="new-game-screen prologue-screen hidden" id="prologueScreen" aria-label="Prologue">
+      <article class="new-game-panel prologue-panel">
+        <div class="prologue-kicker">New Game</div>
+        <h2>Abbey Island Mystery</h2>
+        <div class="prologue-date">October, 1897</div>
+        <div class="prologue-copy" id="prologueCopy" aria-live="polite"></div>
+        <div class="new-game-actions prologue-actions">
+          <div class="prologue-page-status" id="prologuePageStatus" role="status"></div>
+          <button id="previousProloguePage" type="button">Previous</button>
+          <button id="nextProloguePage" type="button">Next</button>
+          <button class="primary" id="beginPrologueGame" type="button">Begin Investigation</button>
+        </div>
+      </article>
     </section>
     <section class="new-game-screen login-screen hidden" id="loginScreen" aria-label="Login">
       <form class="new-game-panel new-game-form login-panel" id="loginForm">

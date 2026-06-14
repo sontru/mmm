@@ -33,6 +33,12 @@ const newPlayerPasswordInput = document.getElementById("newPlayerPassword");
 const resetPositionInput = document.getElementById("resetPosition");
 const resetSavesInput = document.getElementById("resetSaves");
 const resetInventoryInput = document.getElementById("resetInventory");
+const prologueScreen = document.getElementById("prologueScreen");
+const prologueCopy = document.getElementById("prologueCopy");
+const prologuePageStatus = document.getElementById("prologuePageStatus");
+const previousProloguePageButton = document.getElementById("previousProloguePage");
+const nextProloguePageButton = document.getElementById("nextProloguePage");
+const beginPrologueGameButton = document.getElementById("beginPrologueGame");
 const loginScreen = document.getElementById("loginScreen");
 const loginForm = document.getElementById("loginForm");
 const loginStatus = document.getElementById("loginStatus");
@@ -45,6 +51,56 @@ const PLAYER_SPRITE_HEIGHT = 84;
 const MAP_WIDTH = 90;
 const MAP_HEIGHT = 62;
 const START_TILE = { x: 46, y: 14 };
+let pendingPrologueStart = { loadSave: false };
+let prologuePageIndex = 0;
+
+const PROLOGUE_PAGES = [
+  [
+    { text: "For centuries, Black Forest Abbey stood alone upon Abbey Island, a remote speck of land surrounded by treacherous seas and perpetual mist." },
+    { text: "Hidden from the world, the abbey and its surrounding settlement had become entirely self-sustaining." },
+    { text: "The nuns who lived there farmed the fertile fields, tended livestock, maintained workshops, and watched over the ancient lighthouse that guarded ships from the jagged rocks surrounding the island." },
+  ],
+  [
+    { text: "Life on Abbey Island was quiet." },
+    { text: "Until three nights ago.", className: "beat" },
+    { text: "A violent storm cut the island off from the mainland. During that storm, Reverend Mother Agnes Blackwood, the beloved leader of the abbey, was brutally murdered inside the abbey library." },
+  ],
+  [
+    { text: "Her body was discovered at dawn." },
+    { text: "The doors were locked." },
+    { text: "The windows were barred." },
+    { text: "And every resident of the island claims to know nothing." },
+  ],
+  [
+    { text: "The local authorities were unable to reach the island until the seas calmed. By then, fear and suspicion had spread through the community." },
+    { text: "No one has been allowed to leave." },
+    { text: "No one can leave.", className: "beat" },
+  ],
+  [
+    { text: () => `You are ${sisterPlayerName()}, a nun of the Order of Saint Brigid and one of the Church's most trusted investigators.` },
+    { text: "Sent by the Bishop himself, you have arrived aboard the supply ship Mercy to uncover the truth behind the killing." },
+    { text: "As the ship disappears into the fog behind you, a chilling realization settles in your mind." },
+  ],
+  [
+    { text: "The murderer is still here.", className: "beat" },
+    { text: "Somewhere among the island's inhabitants is a killer." },
+    { text: "To uncover the truth, you must explore every corner of Abbey Island." },
+  ],
+  [
+    { text: "Not everyone will tell the truth." },
+    { text: "Not every clue is what it seems." },
+    { text: "And some secrets have been hidden for generations." },
+    { text: "The storm has passed." },
+    { text: "The investigation begins.", className: "beat" },
+  ],
+  [
+    { heading: "Your Objective" },
+    { text: "Identify the murderer." },
+    { text: "Discover the motive." },
+    { text: "Uncover the secrets of Abbey Island." },
+    { text: "And survive long enough to reveal the truth." },
+  ],
+];
 
 const WATER = 0;
 const SAND = 1;
@@ -231,6 +287,16 @@ const SHIP_BUILDING = {
   pier: { x: 46, y: 14, w: 2, h: 2 },
 };
 
+const AREA_ISLAND = "island";
+const AREA_SHIP_ROOM = "harbour-ship-deck";
+const SHIP_ROOM = {
+  id: AREA_SHIP_ROOM,
+  name: "Supply Ship Mercy",
+  width: 12,
+  height: 8,
+  entranceTile: { x: 5, y: 6 },
+};
+
 const GRAPHICS = {
   tiles: {
     [WATER]: "assets/graphics/tile-water.svg",
@@ -333,6 +399,11 @@ function loggedInPlayerName() {
 
 function isLoggedIn() {
   return Boolean(loggedInPlayerName());
+}
+
+function sisterPlayerName() {
+  const playerName = (loggedInPlayerName() || "Player").trim();
+  return /^sister\b/i.test(playerName) ? playerName : `Sister ${playerName}`;
 }
 
 function syncLoginState() {
@@ -2311,6 +2382,157 @@ function drawFallbackBuilding(x, y, w, h) {
   renderCtx.fillRect(x + w - 50, y + 84, 16, 22);
 }
 
+class ShipRoom {
+  constructor() {
+    this.id = SHIP_ROOM.id;
+    this.name = SHIP_ROOM.name;
+    this.width = SHIP_ROOM.width;
+    this.height = SHIP_ROOM.height;
+    this.pixelWidth = this.width * TILE_SIZE;
+    this.pixelHeight = this.height * TILE_SIZE;
+    this.entranceTile = SHIP_ROOM.entranceTile;
+    this.blockedTiles = new Set([
+      "1,1", "2,1", "9,1", "10,1",
+      "1,5", "2,5", "8,5", "9,5",
+      "4,2", "7,2",
+      "5,3", "6,3",
+    ]);
+  }
+
+  spawnAtEntrance(player) {
+    player.rect.x = this.entranceTile.x * TILE_SIZE + 13;
+    player.rect.y = this.entranceTile.y * TILE_SIZE + 8;
+    player.facing = { x: 0, y: -1 };
+    player.stepTimer = 0;
+    player.walking = false;
+  }
+
+  inBounds(tileX, tileY) {
+    return tileX >= 0 && tileX < this.width && tileY >= 0 && tileY < this.height;
+  }
+
+  isTileBlocked(tileX, tileY) {
+    if (!this.inBounds(tileX, tileY)) {
+      return true;
+    }
+    if (tileY === this.height - 1 && (tileX === this.entranceTile.x || tileX === this.entranceTile.x + 1)) {
+      return false;
+    }
+    return tileX === 0 ||
+      tileY === 0 ||
+      tileX === this.width - 1 ||
+      tileY === this.height - 1 ||
+      this.blockedTiles.has(tileX + "," + tileY);
+  }
+
+  canWalk(rect) {
+    const points = [
+      { x: rect.x + rect.w / 2, y: rect.y + rect.h },
+      { x: rect.x, y: rect.y + rect.h },
+      { x: rect.x + rect.w, y: rect.y + rect.h },
+      { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 },
+    ];
+    return points.every((point) => !this.isTileBlocked(
+      Math.floor(point.x / TILE_SIZE),
+      Math.floor(point.y / TILE_SIZE)
+    ));
+  }
+
+  draw(camera) {
+    const x = -camera.x;
+    const y = -camera.y;
+    fill("#10141b");
+    renderCtx.fillRect(x, y, this.pixelWidth, this.pixelHeight);
+    this.drawPlanks(x, y);
+    this.drawHull(x, y);
+    this.drawGangway(x, y);
+    this.drawFixtures(x, y);
+  }
+
+  drawPlanks(x, y) {
+    for (let tileY = 1; tileY < this.height - 1; tileY += 1) {
+      for (let tileX = 1; tileX < this.width - 1; tileX += 1) {
+        const px = x + tileX * TILE_SIZE;
+        const py = y + tileY * TILE_SIZE;
+        fill((tileX + tileY) % 2 === 0 ? "#4b3427" : "#563b2b");
+        renderCtx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+        stroke("rgba(28, 18, 14, 0.72)", 1);
+        line(px, py + TILE_SIZE - 1, px + TILE_SIZE, py + TILE_SIZE - 1);
+        line(px + 8, py, px + 8, py + TILE_SIZE);
+      }
+    }
+  }
+
+  drawHull(x, y) {
+    fill("#241922");
+    renderCtx.fillRect(x, y, this.pixelWidth, TILE_SIZE);
+    renderCtx.fillRect(x, y, TILE_SIZE, this.pixelHeight);
+    renderCtx.fillRect(x + (this.width - 1) * TILE_SIZE, y, TILE_SIZE, this.pixelHeight);
+    renderCtx.fillRect(x, y + (this.height - 1) * TILE_SIZE, this.pixelWidth, TILE_SIZE);
+    fill("#342530");
+    renderCtx.fillRect(x + TILE_SIZE, y + 8, this.pixelWidth - TILE_SIZE * 2, 16);
+    stroke("#7d6a57", 2);
+    line(x + TILE_SIZE, y + TILE_SIZE - 7, x + this.pixelWidth - TILE_SIZE, y + TILE_SIZE - 7);
+    line(x + TILE_SIZE + 4, y + this.pixelHeight - TILE_SIZE + 7, x + this.pixelWidth - TILE_SIZE - 4, y + this.pixelHeight - TILE_SIZE + 7);
+  }
+
+  drawGangway(x, y) {
+    const entranceX = x + this.entranceTile.x * TILE_SIZE;
+    const entranceY = y + (this.height - 1) * TILE_SIZE;
+    fill("#8b6840");
+    renderCtx.fillRect(entranceX, entranceY, TILE_SIZE * 2, TILE_SIZE);
+    stroke("#3d2a1b", 2);
+    renderCtx.strokeRect(entranceX + 0.5, entranceY + 0.5, TILE_SIZE * 2 - 1, TILE_SIZE - 1);
+    stroke("#5c4329", 1);
+    for (let offset = 10; offset < TILE_SIZE * 2; offset += 16) {
+      line(entranceX + offset, entranceY + 4, entranceX + offset, entranceY + TILE_SIZE - 4);
+    }
+  }
+
+  drawFixtures(x, y) {
+    this.drawCrate(x + TILE_SIZE, y + TILE_SIZE, TILE_SIZE * 2, TILE_SIZE);
+    this.drawCrate(x + TILE_SIZE, y + TILE_SIZE * 5, TILE_SIZE * 2, TILE_SIZE);
+    this.drawCrate(x + TILE_SIZE * 8, y + TILE_SIZE * 5, TILE_SIZE * 2, TILE_SIZE);
+    this.drawCrate(x + TILE_SIZE * 9, y + TILE_SIZE, TILE_SIZE * 2, TILE_SIZE);
+    fill("#2c2024");
+    renderCtx.fillRect(x + TILE_SIZE * 5, y + TILE_SIZE * 3, TILE_SIZE * 2, TILE_SIZE);
+    stroke("#8d7650", 2);
+    renderCtx.strokeRect(x + TILE_SIZE * 5 + 4, y + TILE_SIZE * 3 + 4, TILE_SIZE * 2 - 8, TILE_SIZE - 8);
+    fill("#d8d0b8");
+    ellipse(x + TILE_SIZE * 6, y + TILE_SIZE * 3 + 24, 34, 14);
+    fill("#16131a");
+    renderCtx.fillRect(x + TILE_SIZE * 4, y + TILE_SIZE * 2, TILE_SIZE, TILE_SIZE);
+    renderCtx.fillRect(x + TILE_SIZE * 7, y + TILE_SIZE * 2, TILE_SIZE, TILE_SIZE);
+    stroke("#6f5b4a", 2);
+    circle(x + TILE_SIZE * 4.5, y + TILE_SIZE * 2.5, 12, false);
+    circle(x + TILE_SIZE * 7.5, y + TILE_SIZE * 2.5, 12, false);
+  }
+
+  drawCrate(x, y, w, h) {
+    fill("#5e412b");
+    renderCtx.fillRect(x + 3, y + 5, w - 6, h - 10);
+    stroke("#2f2016", 2);
+    renderCtx.strokeRect(x + 3.5, y + 5.5, w - 7, h - 11);
+    stroke("#8b6840", 2);
+    line(x + 8, y + 10, x + w - 8, y + h - 10);
+    line(x + w - 8, y + 10, x + 8, y + h - 10);
+  }
+
+  drawForeground() {}
+
+  hidesPlayer() {
+    return false;
+  }
+
+  locationNearPixel() {
+    return {
+      type: "room",
+      id: this.id,
+      name: this.name,
+    };
+  }
+}
+
 class Player {
   constructor(world) {
     this.rect = {
@@ -2512,9 +2734,9 @@ class Camera {
     this.y = 0;
   }
 
-  follow(rect) {
-    const worldWidth = MAP_WIDTH * TILE_SIZE;
-    const worldHeight = MAP_HEIGHT * TILE_SIZE;
+  follow(rect, map = world) {
+    const worldWidth = map.pixelWidth || MAP_WIDTH * TILE_SIZE;
+    const worldHeight = map.pixelHeight || MAP_HEIGHT * TILE_SIZE;
     this.x = clamp(rect.x + rect.w / 2 - screenWidth / 2, 0, worldWidth - screenWidth);
     this.y = clamp(rect.y + rect.h / 2 - screenHeight / 2, 0, worldHeight - screenHeight);
   }
@@ -2597,8 +2819,14 @@ function drawTree(x, y, tileX, tileY) {
 }
 
 function currentDialogue() {
-  const playerName = loggedInPlayerName() || "Player";
+  const playerName = sisterPlayerName();
   const speaker = `Abbey Island Mystery - ${playerName}`;
+  if (currentAreaId === AREA_SHIP_ROOM) {
+    return {
+      speaker,
+      text: "You stand aboard the supply ship Mercy. The wet deck creaks underfoot as the island fog presses close.",
+    };
+  }
   const footTileX = Math.floor((player.rect.x + player.rect.w / 2) / TILE_SIZE);
   const footTileY = Math.floor((player.rect.y + player.rect.h) / TILE_SIZE);
   if (footTileY === 37 && (footTileX === 46 || footTileX === 47)) {
@@ -2914,8 +3142,89 @@ function scheduleMusic() {
 }
 
 const world = new World();
+const shipRoom = new ShipRoom();
 const player = new Player(world);
 const camera = new Camera();
+const backdropCamera = new Camera();
+let currentAreaId = AREA_ISLAND;
+
+function activeMap() {
+  return currentAreaId === AREA_SHIP_ROOM ? shipRoom : world;
+}
+
+function setCurrentArea(areaId) {
+  currentAreaId = areaId === AREA_SHIP_ROOM ? AREA_SHIP_ROOM : AREA_ISLAND;
+}
+
+function playerFootTile() {
+  return {
+    x: Math.floor((player.rect.x + player.rect.w / 2) / TILE_SIZE),
+    y: Math.floor((player.rect.y + player.rect.h) / TILE_SIZE),
+  };
+}
+
+function setPlayerToIslandPlank() {
+  player.rect.x = 46 * TILE_SIZE + 13;
+  player.rect.y = 14 * TILE_SIZE + 8;
+  player.facing = { x: 0, y: 1 };
+  player.stepTimer = 0;
+  player.walking = false;
+}
+
+function stopPlayerInput() {
+  keys.clear();
+  Object.keys(pad).forEach((direction) => {
+    pad[direction] = false;
+  });
+}
+
+function enterShipRoom() {
+  setCurrentArea(AREA_SHIP_ROOM);
+  shipRoom.spawnAtEntrance(player);
+  stopPlayerInput();
+}
+
+function exitShipRoom() {
+  setCurrentArea(AREA_ISLAND);
+  setPlayerToIslandPlank();
+  stopPlayerInput();
+}
+
+function maybeEnterShipRoom() {
+  if (currentAreaId !== AREA_ISLAND) {
+    return;
+  }
+  const foot = playerFootTile();
+  const onBoardingPlank = foot.x >= 46 && foot.x <= 47 && foot.y <= 13;
+  if (onBoardingPlank) {
+    enterShipRoom();
+  }
+}
+
+function maybeExitShipRoom() {
+  if (currentAreaId !== AREA_SHIP_ROOM) {
+    return;
+  }
+  const foot = playerFootTile();
+  const atGangwayExit = foot.y >= shipRoom.height - 1 && foot.x >= shipRoom.entranceTile.x && foot.x <= shipRoom.entranceTile.x + 1;
+  if (atGangwayExit) {
+    exitShipRoom();
+  }
+}
+
+function centerCameraOnMap(camera, map) {
+  const worldWidth = map.pixelWidth || MAP_WIDTH * TILE_SIZE;
+  const worldHeight = map.pixelHeight || MAP_HEIGHT * TILE_SIZE;
+  camera.x = (worldWidth - screenWidth) / 2;
+  camera.y = (worldHeight - screenHeight) / 2;
+}
+
+function setHarbourBackdropCamera() {
+  const harborX = (SHIP_BUILDING.x + SHIP_BUILDING.w / 2) * TILE_SIZE;
+  const harborY = (SHIP_BUILDING.y + SHIP_BUILDING.h / 2) * TILE_SIZE;
+  backdropCamera.x = clamp(harborX - screenWidth / 2, 0, MAP_WIDTH * TILE_SIZE - screenWidth);
+  backdropCamera.y = clamp(harborY - screenHeight / 2, 0, MAP_HEIGHT * TILE_SIZE - screenHeight);
+}
 
 for (const img of graphicsList()) {
   if (!img.complete) {
@@ -2930,7 +3239,9 @@ function frame(now) {
   lastTime = now;
 
   if (gameStarted) {
-    player.update(dt, world);
+    player.update(dt, activeMap());
+    maybeEnterShipRoom();
+    maybeExitShipRoom();
     const position = currentGameState().position;
     const movedSinceTelemetry = !lastTelemetryPosition ||
       Math.hypot(position.x - lastTelemetryPosition.x, position.y - lastTelemetryPosition.y) > 8;
@@ -2940,15 +3251,28 @@ function frame(now) {
       trackGameEvent("position", position);
     }
   }
-  camera.follow(player.rect);
+  const map = activeMap();
 
   ctx.fillStyle = color(COLORS[WATER]);
   ctx.fillRect(0, 0, screenWidth, screenHeight);
-  world.draw(camera);
-  if (!world.hidesPlayer(player.rect)) {
+  if (currentAreaId === AREA_SHIP_ROOM) {
+    setHarbourBackdropCamera();
+    world.draw(backdropCamera);
+    world.drawForeground(backdropCamera);
+    ctx.fillStyle = "rgba(6, 8, 11, 0.48)";
+    ctx.fillRect(0, 0, screenWidth, screenHeight);
+    centerCameraOnMap(camera, map);
+    map.draw(camera);
     player.draw(camera);
+    map.drawForeground(camera);
+  } else {
+    camera.follow(player.rect, map);
+    map.draw(camera);
+    if (!map.hidesPlayer(player.rect)) {
+      player.draw(camera);
+    }
+    map.drawForeground(camera);
   }
-  world.drawForeground(camera);
   if (gameStarted) {
     drawDialogueBox();
   }
@@ -2983,6 +3307,13 @@ function showLoginStatus(message) {
   loginStatus.textContent = message;
 }
 
+function hideSetupScreens() {
+  loadGameScreen.classList.add("hidden");
+  newGameScreen.classList.add("hidden");
+  prologueScreen.classList.add("hidden");
+  loginScreen.classList.add("hidden");
+}
+
 function serializeInventory() {
   return inventory.map((item) => item ? { ...item } : null);
 }
@@ -3005,6 +3336,7 @@ function restorePlayerPosition(position) {
   if (!position) {
     return;
   }
+  setCurrentArea(position.area || AREA_ISLAND);
   player.rect.x = position.x;
   player.rect.y = position.y;
 }
@@ -3053,6 +3385,9 @@ function saveLabel(save, index) {
 function saveDetail(save) {
   const position = save.position || {};
   const locationName = save.location?.name;
+  if (position.area === AREA_SHIP_ROOM) {
+    return `${locationName || SHIP_ROOM.name}: ${position.tileX},${position.tileY}`;
+  }
   if (Number.isFinite(position.tileX) && Number.isFinite(position.tileY)) {
     return `${locationName || "Last position"}: ${position.tileX},${position.tileY}`;
   }
@@ -3123,6 +3458,12 @@ async function syncServerSaveIntoActiveRecord() {
 }
 
 function nearestSaveLocation() {
+  if (currentAreaId === AREA_SHIP_ROOM) {
+    return {
+      id: SHIP_ROOM.id,
+      name: SHIP_ROOM.name,
+    };
+  }
   const centerX = player.rect.x + player.rect.w / 2;
   const footY = player.rect.y + player.rect.h;
   const location = world.locationNearPixel(centerX, footY, TILE_SIZE * 5);
@@ -3153,6 +3494,7 @@ function currentGameState({ named = false } = {}) {
     savedAt: now.toISOString(),
     location,
     position: {
+      area: currentAreaId,
       x: player.rect.x,
       y: player.rect.y,
       tileX: Math.floor(centerX / TILE_SIZE),
@@ -3223,9 +3565,7 @@ async function startGame({ loadSave = false } = {}) {
     localStorage.setItem("mmmScreen", "title");
     syncLoginState();
     intro.classList.remove("hidden");
-    loadGameScreen.classList.add("hidden");
-    newGameScreen.classList.add("hidden");
-    loginScreen.classList.add("hidden");
+    hideSetupScreens();
     showIntroStatus("Login or create a new game first.");
     return;
   }
@@ -3235,9 +3575,7 @@ async function startGame({ loadSave = false } = {}) {
   gameStarted = true;
   localStorage.setItem("mmmScreen", "game");
   intro.classList.add("hidden");
-  loadGameScreen.classList.add("hidden");
-  newGameScreen.classList.add("hidden");
-  loginScreen.classList.add("hidden");
+  hideSetupScreens();
   syncLoginState();
   startMusic();
   trackGameEvent("game_start", {
@@ -3255,9 +3593,7 @@ function exitToTitle() {
   Object.keys(pad).forEach((direction) => {
     pad[direction] = false;
   });
-  newGameScreen.classList.add("hidden");
-  loadGameScreen.classList.add("hidden");
-  loginScreen.classList.add("hidden");
+  hideSetupScreens();
   intro.classList.remove("hidden");
   showIntroStatus("");
   syncLoginState();
@@ -3265,18 +3601,85 @@ function exitToTitle() {
 
 function syncIntroVisibility() {
   intro.classList.toggle("hidden", gameStarted);
-  loadGameScreen.classList.add("hidden");
-  newGameScreen.classList.add("hidden");
-  loginScreen.classList.add("hidden");
+  hideSetupScreens();
   syncLoginState();
+}
+
+function renderProloguePage() {
+  prologueCopy.replaceChildren();
+  let pageContainer = prologueCopy;
+
+  PROLOGUE_PAGES[prologuePageIndex].forEach((entry) => {
+    if (entry.heading) {
+      const objective = document.createElement("div");
+      objective.className = "prologue-objective";
+      const heading = document.createElement("h3");
+      heading.textContent = entry.heading;
+      objective.append(heading);
+      prologueCopy.append(objective);
+      pageContainer = objective;
+      return;
+    }
+
+    const paragraph = document.createElement("p");
+    paragraph.textContent = typeof entry.text === "function" ? entry.text() : entry.text;
+    if (entry.className) {
+      paragraph.className = entry.className;
+    }
+    pageContainer.append(paragraph);
+  });
+
+  const lastPageIndex = PROLOGUE_PAGES.length - 1;
+  previousProloguePageButton.disabled = prologuePageIndex === 0;
+  nextProloguePageButton.disabled = prologuePageIndex === lastPageIndex;
+  nextProloguePageButton.hidden = prologuePageIndex === lastPageIndex;
+  beginPrologueGameButton.hidden = prologuePageIndex !== lastPageIndex;
+  prologuePageStatus.textContent = `Page ${prologuePageIndex + 1} of ${PROLOGUE_PAGES.length}`;
+}
+
+function showProloguePage(pageIndex) {
+  prologuePageIndex = Math.max(0, Math.min(PROLOGUE_PAGES.length - 1, pageIndex));
+  renderProloguePage();
+}
+
+function nextProloguePage() {
+  showProloguePage(prologuePageIndex + 1);
+  if (prologuePageIndex === PROLOGUE_PAGES.length - 1) {
+    beginPrologueGameButton.focus();
+  } else {
+    nextProloguePageButton.focus();
+  }
+}
+
+function previousProloguePage() {
+  showProloguePage(prologuePageIndex - 1);
+  if (prologuePageIndex === 0) {
+    nextProloguePageButton.focus();
+  } else {
+    previousProloguePageButton.focus();
+  }
+}
+
+function openPrologueScreen({ loadSave = false } = {}) {
+  gameStarted = false;
+  pendingPrologueStart = { loadSave };
+  localStorage.setItem("mmmScreen", "prologue");
+  intro.classList.add("hidden");
+  hideSetupScreens();
+  showProloguePage(0);
+  prologueScreen.classList.remove("hidden");
+  nextProloguePageButton.focus();
+}
+
+async function beginPrologueGame() {
+  await startGame(pendingPrologueStart);
 }
 
 async function openLoadGameScreen() {
   gameStarted = false;
   localStorage.setItem("mmmScreen", "title");
   intro.classList.add("hidden");
-  newGameScreen.classList.add("hidden");
-  loginScreen.classList.add("hidden");
+  hideSetupScreens();
   loadGameScreen.classList.remove("hidden");
   showLoadGameStatus("");
 
@@ -3307,8 +3710,7 @@ function openNewGameSetup({ loginMode = false } = {}) {
   gameStarted = false;
   localStorage.setItem("mmmScreen", "title");
   intro.classList.add("hidden");
-  loadGameScreen.classList.add("hidden");
-  loginScreen.classList.add("hidden");
+  hideSetupScreens();
   newGameScreen.classList.remove("hidden");
   showNewGameStatus("");
 
@@ -3331,8 +3733,7 @@ function openLoginScreen() {
   gameStarted = false;
   localStorage.setItem("mmmScreen", "title");
   intro.classList.add("hidden");
-  loadGameScreen.classList.add("hidden");
-  newGameScreen.classList.add("hidden");
+  hideSetupScreens();
   loginScreen.classList.remove("hidden");
   showLoginStatus("");
 
@@ -3368,6 +3769,7 @@ async function createGameFromLoadScreen() {
     return;
   }
 
+  setCurrentArea(AREA_ISLAND);
   player.resetToStart(world);
   resetInventory();
 
@@ -3385,7 +3787,7 @@ async function createGameFromLoadScreen() {
   };
   saveGameDatabase(database);
   await serverSaveGameState(currentSave, "new_game_reset");
-  await startGame();
+  openPrologueScreen();
 }
 
 async function createNewGame(event) {
@@ -3422,6 +3824,7 @@ async function createNewGame(event) {
   const resetItems = resetInventoryInput.checked || !isExistingPlayer;
 
   if (resetPosition) {
+    setCurrentArea(AREA_ISLAND);
     player.resetToStart(world);
   } else {
     restorePlayerPosition(existing.currentSave?.position);
@@ -3455,7 +3858,11 @@ async function createNewGame(event) {
   loggedInName = playerName;
   syncLoginState();
   showNewGameStatus(auth.created ? "Game created." : "Logged in.");
-  await startGame({ loadSave: !resetPosition || !resetItems });
+  if (auth.created) {
+    openPrologueScreen();
+  } else {
+    await startGame({ loadSave: !resetPosition || !resetItems });
+  }
 }
 
 async function loginExistingUser(event) {
@@ -3510,7 +3917,7 @@ async function logoutUser() {
   await serverLogout();
   gameStarted = false;
   localStorage.setItem("mmmScreen", "title");
-  loadGameScreen.classList.add("hidden");
+  hideSetupScreens();
   intro.classList.remove("hidden");
   showIntroStatus("Logged out locally. Login or create a new game.");
 }
@@ -3682,10 +4089,24 @@ window.addEventListener("keydown", (event) => {
   const introControlFocused = activeElement && intro.contains(activeElement);
   const newGameControlFocused = activeElement && newGameScreen.contains(activeElement);
   const loadGameControlFocused = activeElement && loadGameScreen.contains(activeElement);
+  const prologueControlFocused = activeElement && prologueScreen.contains(activeElement);
   const loginControlFocused = activeElement && loginScreen.contains(activeElement);
-  if (!gameStarted && event.key.toLowerCase() === "enter" && !introControlFocused && !loadGameControlFocused && !newGameControlFocused && !loginControlFocused) {
+  if (!gameStarted && event.key.toLowerCase() === "enter" && !introControlFocused && !loadGameControlFocused && !newGameControlFocused && !prologueControlFocused && !loginControlFocused) {
     openLoadGameScreen();
     return;
+  }
+
+  if (!gameStarted && !prologueScreen.classList.contains("hidden")) {
+    if (["arrowright", "pagedown", " "].includes(event.key.toLowerCase())) {
+      event.preventDefault();
+      nextProloguePage();
+      return;
+    }
+    if (["arrowleft", "pageup"].includes(event.key.toLowerCase())) {
+      event.preventDefault();
+      previousProloguePage();
+      return;
+    }
   }
 
   if (!gameStarted) {
@@ -3763,10 +4184,14 @@ cancelLoadGameButton.addEventListener("click", closeLoadGameScreen);
 createGameFromLoadButton.addEventListener("click", createGameFromLoadScreen);
 newGameForm.addEventListener("submit", createNewGame);
 cancelNewGameButton.addEventListener("click", closeNewGameSetup);
+previousProloguePageButton.addEventListener("click", previousProloguePage);
+nextProloguePageButton.addEventListener("click", nextProloguePage);
+beginPrologueGameButton.addEventListener("click", beginPrologueGame);
 loginForm.addEventListener("submit", loginExistingUser);
 cancelLoginButton.addEventListener("click", closeLoginScreen);
 
 async function bootGame() {
+  const storedScreen = localStorage.getItem("mmmScreen");
   setMenuActionsCollapsed(loadMenuActionsSetting());
   renderInventory();
   await refreshSessionState();
@@ -3780,6 +4205,9 @@ async function bootGame() {
     await loadActiveGameState();
   }
   syncIntroVisibility();
+  if (!gameStarted && storedScreen === "prologue" && isLoggedIn()) {
+    openPrologueScreen();
+  }
   resize();
   requestAnimationFrame(frame);
 }

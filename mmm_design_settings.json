@@ -87,6 +87,8 @@
     "58,57": 6
   },
   "blockingOverrides": {
+    "46,12": false,
+    "47,12": false,
     "61,14": false,
     "55,15": false,
     "56,15": false,

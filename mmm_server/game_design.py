@@ -135,6 +135,36 @@ DESIGN_NOTES = [
     "World constants are mirrored here so admin views can visualize design intent.",
 ]
 
+ROOMS = [
+    {
+        "id": "harbour-ship-deck",
+        "name": "Supply Ship Mercy",
+        "kind": "ship",
+        "width": 12,
+        "height": 8,
+        "entrance": {
+            "id": "harbour-ship-gangway",
+            "name": "Gangway to Abbey Island",
+            "x": 5,
+            "y": 7,
+            "w": 2,
+            "h": 1,
+            "exitArea": "island",
+            "exitTile": {"x": 46, "y": 14},
+        },
+        "spawn": {"x": 5, "y": 6},
+        "fixtures": [
+            {"kind": "crate", "x": 1, "y": 1, "w": 2, "h": 1},
+            {"kind": "crate", "x": 9, "y": 1, "w": 2, "h": 1},
+            {"kind": "crate", "x": 1, "y": 5, "w": 2, "h": 1},
+            {"kind": "crate", "x": 8, "y": 5, "w": 2, "h": 1},
+            {"kind": "porthole", "x": 4, "y": 2, "w": 1, "h": 1},
+            {"kind": "porthole", "x": 7, "y": 2, "w": 1, "h": 1},
+            {"kind": "table", "x": 5, "y": 3, "w": 2, "h": 1},
+        ],
+    }
+]
+
 
 def design_payload():
     """Build the complete design payload consumed by the browser and admin UI."""
@@ -179,6 +209,7 @@ def design_payload():
         "caveEntrances": CAVE_ENTRANCES,
         "landmarks": [*CLOISTER_LANDMARKS, LAKE_OF_TEARS],
         "zones": DESIGN_ZONES,
+        "rooms": ROOMS,
         "notes": DESIGN_NOTES,
     }
 
