@@ -51,6 +51,18 @@ SHIP_BUILDING = {
     "pier": {"x": 46, "y": 14, "w": 2, "h": 2},
 }
 
+LIGHTHOUSE_BUILDING = {
+    "id": "east-lighthouse",
+    "name": "East Lighthouse",
+    "kind": "lighthouse",
+    "x": 70,
+    "y": 33,
+    "w": 2,
+    "h": 2,
+    "background": SAND,
+    "entrances": [{"id": "east-lighthouse-entrance", "name": "Door", "area_id": "east-lighthouse-room", "x": 0, "y": 1}],
+}
+
 COLORS = {
     WATER: (23, 44, 69),
     SAND: (106, 110, 112),
@@ -358,6 +370,10 @@ class World:
     def _place_buildings(self):
         """Place authored and generated buildings in the desktop world."""
         buildings = [dict(SHIP_BUILDING)]
+        lighthouse = dict(LIGHTHOUSE_BUILDING)
+        lighthouse["background"] = self._building_background(lighthouse["x"], lighthouse["y"], lighthouse["w"], lighthouse["h"])
+        buildings.append(lighthouse)
+        self._make_building_ground(lighthouse["x"], lighthouse["y"], lighthouse["background"], lighthouse["w"], lighthouse["h"])
         for site in BUILDING_SITES:
             tile_x = site["x"]
             tile_y = site["y"]
@@ -398,22 +414,22 @@ class World:
                     return False
         return True
 
-    def _building_background(self, tile_x, tile_y):
+    def _building_background(self, tile_x, tile_y, width=3, height=3):
         """Choose terrain background for a desktop building footprint."""
         counts = {SAND: 0, GRASS: 0, FOREST: 0}
-        for y in range(tile_y - 1, tile_y + 4):
-            for x in range(tile_x - 1, tile_x + 4):
-                if tile_x <= x < tile_x + 3 and tile_y <= y < tile_y + 3:
+        for y in range(tile_y - 1, tile_y + height + 1):
+            for x in range(tile_x - 1, tile_x + width + 1):
+                if tile_x <= x < tile_x + width and tile_y <= y < tile_y + height:
                     continue
                 if self.in_bounds(x, y) and self.tiles[y][x] in counts:
                     counts[self.tiles[y][x]] += 1
 
         return max(counts, key=counts.get)
 
-    def _make_building_ground(self, tile_x, tile_y, background):
+    def _make_building_ground(self, tile_x, tile_y, background, width=3, height=3):
         """Create desktop terrain under a building footprint."""
-        for y in range(tile_y, tile_y + 3):
-            for x in range(tile_x, tile_x + 3):
+        for y in range(tile_y, tile_y + height):
+            for x in range(tile_x, tile_x + width):
                 self.tiles[y][x] = background
 
     def in_bounds(self, tile_x, tile_y):
@@ -946,6 +962,8 @@ class World:
             local_rect = pygame.Rect(0, 0, rect.width, rect.height)
             if building.get("kind") == "ship":
                 self._draw_ship(building_surface, local_rect)
+            elif building.get("kind") == "lighthouse":
+                self._draw_lighthouse(building_surface, local_rect)
             elif building["variant"] == 0:
                 self._draw_manor(building_surface, local_rect)
             elif building["variant"] == 1:
@@ -1084,6 +1102,53 @@ class World:
         pygame.draw.rect(surface, (61, 42, 27), plank, 2)
         for offset in range(12, plank.height, 12):
             pygame.draw.line(surface, (92, 67, 41), (plank.left + 3, plank.top + offset), (plank.right - 3, plank.top + offset), 1)
+
+    def _draw_lighthouse(self, surface, rect):
+        """Draw the east lighthouse building sprite."""
+        center_x = rect.centerx
+        base_y = rect.bottom - 3
+        top_y = rect.top + 4
+        pygame.draw.ellipse(surface, (4, 7, 11, 142), (rect.left + 10, base_y - 17, rect.width - 20, 15))
+        pygame.draw.polygon(
+            surface,
+            (48, 44, 50),
+            (
+                (rect.left + 13, base_y),
+                (rect.left + 24, rect.top + 60),
+                (center_x - 16, top_y + 35),
+                (center_x + 16, top_y + 35),
+                (rect.right - 24, rect.top + 60),
+                (rect.right - 13, base_y),
+            ),
+        )
+        pygame.draw.polygon(
+            surface,
+            (94, 88, 96),
+            (
+                (rect.left + 24, base_y - 2),
+                (rect.left + 31, rect.top + 62),
+                (center_x - 11, top_y + 38),
+                (center_x + 11, top_y + 38),
+                (rect.right - 31, rect.top + 62),
+                (rect.right - 24, base_y - 2),
+            ),
+        )
+        for band in range(3):
+            band_y = rect.top + 43 + band * 25
+            pygame.draw.line(surface, (27, 24, 29), (rect.left + 27 - band * 3, band_y), (rect.right - 27 + band * 3, band_y), 3)
+        pygame.draw.rect(surface, (24, 20, 27), (center_x - 20, top_y + 23, 40, 18))
+        pygame.draw.rect(surface, (240, 211, 107), (center_x - 14, top_y + 27, 28, 9))
+        beam = pygame.Surface(rect.size, pygame.SRCALPHA)
+        pygame.draw.polygon(
+            beam,
+            (240, 211, 107, 56),
+            ((center_x + 14, top_y + 31), (rect.right + 22, top_y + 8), (rect.right + 22, top_y + 54)),
+        )
+        surface.blit(beam, (0, 0))
+        pygame.draw.polygon(surface, (33, 24, 32), ((center_x - 28, top_y + 24), (center_x, top_y - 2), (center_x + 28, top_y + 24)))
+        pygame.draw.rect(surface, (182, 165, 109), (center_x - 25, top_y + 23, 50, 5))
+        pygame.draw.rect(surface, (17, 16, 20), (rect.left + 14, rect.top + 92, 20, 35), border_radius=10)
+        pygame.draw.rect(surface, (17, 16, 20), (center_x - 9, rect.top + 58, 18, 22), border_radius=8)
 
     def _draw_manor(self, surface, rect):
         """Draw the manor building sprite."""

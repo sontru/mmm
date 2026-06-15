@@ -22,6 +22,7 @@ TILES = {
 BUILDING_PLANS = [
     {"id": "black-abbey", "name": "Black Forest Abbey", "kind": "monastery", "x": 30, "y": 25, "w": 30, "h": 12},
     {"id": "harbour-ship", "name": "Harbour Ship", "kind": "ship", "x": 45, "y": 10, "w": 4, "h": 4},
+    {"id": "east-lighthouse", "name": "East Lighthouse", "kind": "lighthouse", "x": 70, "y": 33, "w": 2, "h": 2},
     {"id": "north-chapel", "name": "North Chapel", "kind": "house"},
     {"id": "west-manor", "name": "West Manor", "kind": "house"},
     {"id": "east-ruin", "name": "East Ruin", "kind": "house"},
@@ -66,6 +67,7 @@ HOUSE_BUILDING_PLANS = [
 ]
 
 GRANARY_BUILDING = {"id": "granary", "name": "Granary", "areaId": "granary-room", "x": 45, "y": 51, "w": 3, "h": 3}
+LIGHTHOUSE_BUILDING = {"id": "east-lighthouse", "name": "East Lighthouse", "areaId": "east-lighthouse-room", "x": 70, "y": 33, "w": 2, "h": 2}
 
 HOUSE_CANDIDATES = [
     {"x": 43, "y": 8},
@@ -495,6 +497,25 @@ def place_buildings(tiles):
     ship = dict(SHIP_BUILDING)
     buildings = [monastery, ship]
     make_building_ground(tiles, monastery["x"], monastery["y"], monastery["w"], monastery["h"], monastery["background"])
+    lighthouse = {
+        "id": LIGHTHOUSE_BUILDING["id"],
+        "name": LIGHTHOUSE_BUILDING["name"],
+        "kind": "lighthouse",
+        "x": LIGHTHOUSE_BUILDING["x"],
+        "y": LIGHTHOUSE_BUILDING["y"],
+        "w": LIGHTHOUSE_BUILDING["w"],
+        "h": LIGHTHOUSE_BUILDING["h"],
+        "background": building_background(
+            tiles,
+            LIGHTHOUSE_BUILDING["x"],
+            LIGHTHOUSE_BUILDING["y"],
+            LIGHTHOUSE_BUILDING["w"],
+            LIGHTHOUSE_BUILDING["h"],
+        ),
+        "entrances": [{"id": "east-lighthouse-entrance", "name": "Door", "areaId": LIGHTHOUSE_BUILDING["areaId"], "x": 0, "y": 1}],
+    }
+    buildings.append(lighthouse)
+    make_building_ground(tiles, lighthouse["x"], lighthouse["y"], lighthouse["w"], lighthouse["h"], lighthouse["background"])
     granary = {
         "id": GRANARY_BUILDING["id"],
         "name": GRANARY_BUILDING["name"],

@@ -333,6 +333,7 @@ const HOUSE_BUILDING_PLANS = [
   { id: "old-parish-house", name: "Old Parish House", areaId: "old-parish-house-room" },
 ];
 const GRANARY_BUILDING = { id: "granary", name: "Granary", areaId: "granary-room", x: 45, y: 51, w: 3, h: 3 };
+const LIGHTHOUSE_BUILDING = { id: "east-lighthouse", name: "East Lighthouse", areaId: "east-lighthouse-room", x: 70, y: 33, w: 2, h: 2 };
 
 const images = loadImages(GRAPHICS);
 const GAME_DB_KEY = "mmmDatabase";
@@ -1030,6 +1031,20 @@ class World {
     const ship = { ...SHIP_BUILDING };
     const buildings = [monastery, ship];
     this.makeBuildingGround(monastery.x, monastery.y, monastery.w, monastery.h, monastery.background);
+    const lighthouse = {
+      id: LIGHTHOUSE_BUILDING.id,
+      name: LIGHTHOUSE_BUILDING.name,
+      kind: "lighthouse",
+      x: LIGHTHOUSE_BUILDING.x,
+      y: LIGHTHOUSE_BUILDING.y,
+      w: LIGHTHOUSE_BUILDING.w,
+      h: LIGHTHOUSE_BUILDING.h,
+      background: this.buildingBackground(LIGHTHOUSE_BUILDING.x, LIGHTHOUSE_BUILDING.y, LIGHTHOUSE_BUILDING.w, LIGHTHOUSE_BUILDING.h),
+      entrances: [{ id: "east-lighthouse-entrance", name: "Door", areaId: LIGHTHOUSE_BUILDING.areaId, x: 0, y: 1 }],
+      doors: [{ x: 0, y: 1 }],
+    };
+    buildings.push(lighthouse);
+    this.makeBuildingGround(lighthouse.x, lighthouse.y, lighthouse.w, lighthouse.h, lighthouse.background);
     const granary = {
       id: GRANARY_BUILDING.id,
       name: GRANARY_BUILDING.name,
@@ -1585,6 +1600,10 @@ class World {
         this.drawShip(building);
         continue;
       }
+      if (building.kind === "lighthouse") {
+        this.drawLighthouse(building);
+        continue;
+      }
 
       const img = images.buildings[building.imageIndex];
       const x = building.x * TILE_SIZE;
@@ -1596,6 +1615,71 @@ class World {
         drawMaskedFallback(x, y, w, h, drawFallbackBuilding);
       }
     }
+  }
+
+  drawLighthouse(building) {
+    const x = building.x * TILE_SIZE;
+    const y = building.y * TILE_SIZE;
+    const w = building.w * TILE_SIZE;
+    const h = building.h * TILE_SIZE;
+    const centerX = x + w / 2;
+    const baseY = y + h;
+    const topY = y - TILE_SIZE * 0.9;
+
+    fill("rgba(4, 7, 11, 0.5)");
+    ellipse(centerX, baseY - 5, w * 0.88, 20);
+    fill("#302c32");
+    polygon([
+      [x + 14, baseY - 8],
+      [x + 24, y + 30],
+      [centerX - 17, topY + 42],
+      [centerX + 17, topY + 42],
+      [x + w - 24, y + 30],
+      [x + w - 14, baseY - 8],
+    ]);
+    fill("#5e5860");
+    polygon([
+      [x + 25, baseY - 10],
+      [x + 32, y + 32],
+      [centerX - 12, topY + 45],
+      [centerX + 12, topY + 45],
+      [x + w - 32, y + 32],
+      [x + w - 25, baseY - 10],
+    ]);
+
+    stroke("rgba(27, 24, 29, 0.75)", 3);
+    for (let band = 0; band < 3; band += 1) {
+      const bandY = y + 15 + band * 26;
+      line(x + 27 - band * 3, bandY, x + w - 27 + band * 3, bandY);
+    }
+
+    fill("#18141b");
+    renderCtx.fillRect(centerX - 20, topY + 29, 40, 18);
+    fill("#f0d36b");
+    renderCtx.fillRect(centerX - 14, topY + 32, 28, 10);
+    fill("rgba(240, 211, 107, 0.22)");
+    polygon([
+      [centerX + 14, topY + 37],
+      [centerX + TILE_SIZE * 1.4, topY + 13],
+      [centerX + TILE_SIZE * 1.4, topY + 61],
+    ]);
+    fill("#211820");
+    polygon([
+      [centerX - 28, topY + 30],
+      [centerX, topY],
+      [centerX + 28, topY + 30],
+    ]);
+    fill("#b6a56d");
+    renderCtx.fillRect(centerX - 25, topY + 28, 50, 5);
+
+    fill("#111014");
+    renderCtx.beginPath();
+    renderCtx.roundRect(x + 13, y + 58, 20, 34, 10);
+    renderCtx.fill();
+    fill("#18141b");
+    renderCtx.beginPath();
+    renderCtx.roundRect(centerX - 9, y + 26, 18, 22, 8);
+    renderCtx.fill();
   }
 
   drawMonastery(building) {

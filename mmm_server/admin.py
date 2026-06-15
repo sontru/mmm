@@ -618,6 +618,10 @@ def admin_page():
           drawShipBuilding(building, x, y, w, h, tile);
           continue;
         }
+        if (building.kind === "lighthouse") {
+          drawLighthouseBuilding(building, x, y, w, h, tile);
+          continue;
+        }
         ctx.fillStyle = building.kind === "monastery" ? "rgba(32, 28, 34, 0.86)" : "rgba(61, 54, 64, 0.88)";
         ctx.fillRect(x, y, w, h);
         ctx.strokeStyle = "#e2c66e";
@@ -637,6 +641,70 @@ def admin_page():
           ctx.fillText(entrance.name, ex + 6, ey - 5);
         }
       }
+    }
+
+    function drawLighthouseBuilding(building, x, y, w, h, tile) {
+      const centerX = x + w / 2;
+      const topY = y - tile * 0.45;
+      const baseY = y + h;
+      ctx.fillStyle = "rgba(7, 11, 15, 0.48)";
+      ctx.beginPath();
+      ctx.ellipse(centerX, baseY - 4, w * 0.42, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#302c32";
+      ctx.beginPath();
+      ctx.moveTo(x + 8, baseY - 4);
+      ctx.lineTo(x + 15, y + 18);
+      ctx.lineTo(centerX - 9, topY + 20);
+      ctx.lineTo(centerX + 9, topY + 20);
+      ctx.lineTo(x + w - 15, y + 18);
+      ctx.lineTo(x + w - 8, baseY - 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#5e5860";
+      ctx.beginPath();
+      ctx.moveTo(x + 16, baseY - 5);
+      ctx.lineTo(x + 20, y + 20);
+      ctx.lineTo(centerX - 6, topY + 22);
+      ctx.lineTo(centerX + 6, topY + 22);
+      ctx.lineTo(x + w - 20, y + 20);
+      ctx.lineTo(x + w - 16, baseY - 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "rgba(27, 24, 29, 0.72)";
+      ctx.lineWidth = 1;
+      for (let band = 0; band < 3; band += 1) {
+        const bandY = y + 12 + band * 13;
+        ctx.beginPath();
+        ctx.moveTo(x + 17 - band, bandY);
+        ctx.lineTo(x + w - 17 + band, bandY);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "#18141b";
+      ctx.fillRect(centerX - 12, topY + 12, 24, 10);
+      ctx.fillStyle = "#f0d36b";
+      ctx.fillRect(centerX - 8, topY + 14, 16, 6);
+      ctx.fillStyle = "rgba(240, 211, 107, 0.24)";
+      ctx.beginPath();
+      ctx.moveTo(centerX + 8, topY + 17);
+      ctx.lineTo(centerX + tile, topY + 7);
+      ctx.lineTo(centerX + tile, topY + 27);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#211820";
+      ctx.beginPath();
+      ctx.moveTo(centerX - 15, topY + 12);
+      ctx.lineTo(centerX, topY - 2);
+      ctx.lineTo(centerX + 15, topY + 12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#111014";
+      ctx.fillRect(x + 7, y + h - 18, 12, 18);
+      ctx.fillStyle = "rgba(9, 14, 10, 0.82)";
+      ctx.fillRect(x + 2, y + 2, 92, 16);
+      ctx.fillStyle = "#fff4c5";
+      ctx.font = "700 10px system-ui";
+      ctx.fillText(building.name + " · " + building.x + "," + building.y, x + 5, y + 5);
     }
 
     function drawShipBuilding(building, x, y, w, h, tile) {
