@@ -1,0 +1,13 @@
+[Unit]
+Description=MMM Game Backend
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/sont/Game/mmm
+ExecStart=/usr/bin/python3 -m mmm_server.app
+Restart=on-failure
+User=%i
+
+[Install]
+WantedBy=multi-user.target
