@@ -98,11 +98,11 @@ def admin_page():
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MMM Admin</title>
+  <title>MMM Game Map</title>
   <style>
     /* Page shell */
     body { margin: 0; font: 15px/1.45 system-ui, sans-serif; background: #101416; color: #edf0e8; }
-    main { width: min(1400px, calc(100% - 32px)); margin: 20px auto 48px; }
+    main { width: min(1800px, calc(100% - 32px)); margin: 20px auto 48px; }
     h1, h2 { margin: 0 0 12px; }
     h1 { font-size: 24px; }
     h2 { font-size: 15px; color: #cfd8cd; }
@@ -117,7 +117,6 @@ def admin_page():
     .legend { flex: 1 1 720px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: #b9c4bd; font-size: 13px; }
     .legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
     .legend label { white-space: nowrap; }
-    .legend select { min-width: 160px; padding: 5px 7px; border: 1px solid #425157; border-radius: 6px; background: #0b1114; color: #edf0e8; }
     #mapCoords { flex: 0 0 330px; justify-content: flex-end; overflow: hidden; text-align: right; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
     .swatch { width: 13px; height: 13px; border: 1px solid rgba(255,255,255,.22); }
     .map-layers { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 14px; border-bottom: 1px solid #344148; color: #cfd8cd; font-size: 13px; }
@@ -136,34 +135,9 @@ def admin_page():
     .map-scroll { overflow: auto; max-height: 72vh; background: #0b1114; }
     #adminMap { display: block; image-rendering: crisp-edges; }
 
-    /* SVG graphics editor */
-    .asset-editor { margin-top: 12px; }
-    .asset-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
-    .asset-toolbar button { padding: 8px 12px; border: 1px solid #58676c; border-radius: 6px; background: #d8e7b5; color: #11181b; font-weight: 800; cursor: pointer; }
-    .asset-toolbar button.secondary { background: #11181b; color: #edf0e8; }
-    .asset-toolbar button:disabled { opacity: .55; cursor: wait; }
-    .asset-toolbar select, .asset-toolbar input { padding: 7px 8px; border: 1px solid #425157; border-radius: 6px; background: #0b1114; color: #edf0e8; }
-    .asset-toolbar input[type="color"] { width: 42px; height: 34px; padding: 2px; }
-    .asset-toolbar label { color: #cfd8cd; font-size: 13px; font-weight: 700; }
-    .asset-workspace { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr); gap: 12px; }
-    .asset-stage { min-height: 420px; display: grid; place-items: center; overflow: auto; border: 1px solid #344148; border-radius: 6px; background: #0b1114; }
-    #svgEditorSurface { display: grid; place-items: center; min-width: 320px; min-height: 320px; padding: 18px; }
-    #svgEditorSurface svg { width: min(420px, 70vw); height: min(420px, 70vw); image-rendering: pixelated; background: rgba(255,255,255,.04); cursor: crosshair; }
-    #svgSource { width: 100%; min-height: 420px; box-sizing: border-box; padding: 10px; border: 1px solid #344148; border-radius: 6px; background: #0b1114; color: #d8e7b5; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
-    #assetStatus { color: #b9c4bd; font-size: 13px; }
-    @media (max-width: 860px) { .asset-workspace { grid-template-columns: 1fr; } }
-
-    /* Project code file editor */
-    .code-editor { margin-top: 12px; }
-    .code-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
-    .code-toolbar button { padding: 8px 12px; border: 1px solid #58676c; border-radius: 6px; background: #d8e7b5; color: #11181b; font-weight: 800; cursor: pointer; }
-    .code-toolbar button.secondary { background: #11181b; color: #edf0e8; }
-    .code-toolbar button:disabled { opacity: .55; cursor: wait; }
-    .code-toolbar select { min-width: min(520px, 100%); padding: 7px 8px; border: 1px solid #425157; border-radius: 6px; background: #0b1114; color: #edf0e8; }
-    .code-toolbar label { color: #cfd8cd; font-size: 13px; font-weight: 700; }
-    .code-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: #b9c4bd; font-size: 13px; margin-bottom: 8px; }
-    #codeSource { width: 100%; min-height: 620px; box-sizing: border-box; padding: 12px; border: 1px solid #344148; border-radius: 6px; background: #0b1114; color: #e5efd4; font: 13px/1.48 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; tab-size: 4; }
-    #codeStatus { color: #b9c4bd; font-size: 13px; }
+    .admin-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+    .nav-button { display: inline-flex; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 8px; border: 1px solid #425157; background: #182023; color: #edf0e8; text-decoration: none; font-weight: 700; }
+    .nav-button:hover { background: #213034; }
 
     /* Shared content tables */
     table { width: 100%; border-collapse: collapse; }
@@ -175,13 +149,12 @@ def admin_page():
 </head>
 <body>
   <main>
-    <h1>Abbey Island Mystery Admin</h1>
-    <section class="grid">
-      <div class="panel"><h2>Players</h2><div class="metric" id="playerCount">__PLAYER_COUNT__</div></div>
-      <div class="panel"><h2>Active Sessions</h2><div class="metric" id="sessionCount">__SESSION_COUNT__</div></div>
-      <div class="panel"><h2>Saved Games</h2><div class="metric" id="saveCount">__SAVE_COUNT__</div></div>
-      <div class="panel"><h2>Online On Map</h2><div class="metric" id="onlineCount">__ONLINE_COUNT__</div></div>
-    </section>
+    <div class="admin-nav">
+      <a class="nav-button" href="/admin">Game Map</a>
+      <a class="nav-button" href="/admin/rooms">Rooms</a>
+      <a class="nav-button" href="/admin/assets">Assets & Code</a>
+    </div>
+    <h1>Game Map</h1>
     <section class="panel edit-panel">
       <h2>Map Edit</h2>
       <div class="edit-toolbar">
@@ -203,12 +176,8 @@ def admin_page():
     </section>
     <section class="panel map-panel">
       <div class="map-toolbar">
-        <h2>Half-Scale Live Map</h2>
+        <h2>Live Map</h2>
         <div class="legend">
-          <label for="roomAreaSelect">Room</label>
-          <select id="roomAreaSelect">
-            <option value="main">Main Map</option>
-          </select>
           <span><i class="swatch" style="background:#172c45"></i>Water</span>
           <span><i class="swatch" style="background:#6f6555"></i>Sand</span>
           <span><i class="swatch" style="background:#263925"></i>Grass</span>
@@ -233,55 +202,18 @@ def admin_page():
         <label><input type="checkbox" data-layer="players" checked>Players</label>
       </div>
       <div class="map-scroll">
-        <canvas id="adminMap" aria-label="Half-scale live game map"></canvas>
+        <canvas id="adminMap" aria-label="Live game map"></canvas>
       </div>
     </section>
     <section class="grid" style="margin-top: 12px;">
       <div class="panel"><h2>Event Totals</h2><table><tbody id="eventTotals">__EVENT_ROWS__</tbody></table></div>
       <div class="panel"><h2>Recent Players</h2><table><tbody id="recentPlayers">__PLAYER_ROWS__</tbody></table></div>
     </section>
-    <section class="panel asset-editor">
-      <h2>Graphics Assets</h2>
-      <div class="asset-toolbar">
-        <label for="assetSelect">SVG</label>
-        <select id="assetSelect"></select>
-        <label for="assetTool">Tool</label>
-        <select id="assetTool">
-          <option value="brush">Brush</option>
-          <option value="line">Line</option>
-          <option value="rect">Rectangle</option>
-          <option value="circle">Circle</option>
-          <option value="erase">Erase Last</option>
-        </select>
-        <label for="assetColor">Color</label>
-        <input id="assetColor" type="color" value="#d8e7b5">
-        <label for="assetStroke">Size</label>
-        <input id="assetStroke" type="number" min="1" max="16" value="3">
-        <button id="undoAssetEdit" class="secondary" type="button">Undo</button>
-        <button id="applySvgSource" class="secondary" type="button">Apply Source</button>
-        <button id="saveAsset" type="button">Save SVG</button>
-        <span id="assetStatus">Select an SVG to edit.</span>
-      </div>
-      <div class="asset-workspace">
-        <div class="asset-stage"><div id="svgEditorSurface"></div></div>
-        <textarea id="svgSource" spellcheck="false" aria-label="SVG source"></textarea>
-      </div>
-    </section>
-    <section class="panel code-editor">
-      <h2>Code Files</h2>
-      <div class="code-toolbar">
-        <label for="codeFileSelect">File</label>
-        <select id="codeFileSelect"></select>
-        <button id="reloadCodeFile" class="secondary" type="button">Reload</button>
-        <button id="saveCodeFile" type="button">Save File</button>
-        <span id="codeStatus">Select a code file to edit.</span>
-      </div>
-      <div class="code-meta">
-        <span id="codeFilePath">No file loaded</span>
-        <span id="codeFileLanguage">Language -</span>
-        <span id="codeFileSize">0 bytes</span>
-      </div>
-      <textarea id="codeSource" spellcheck="false" aria-label="Project code file source"></textarea>
+    <section class="grid" style="margin-top: 12px;">
+      <div class="panel"><h2>Players</h2><div class="metric" id="playerCount">__PLAYER_COUNT__</div></div>
+      <div class="panel"><h2>Active Sessions</h2><div class="metric" id="sessionCount">__SESSION_COUNT__</div></div>
+      <div class="panel"><h2>Saved Games</h2><div class="metric" id="saveCount">__SAVE_COUNT__</div></div>
+      <div class="panel"><h2>Online On Map</h2><div class="metric" id="onlineCount">__ONLINE_COUNT__</div></div>
     </section>
   </main>
   <script id="initialSummary" type="application/json">__INITIAL_SUMMARY__</script>
@@ -294,7 +226,6 @@ def admin_page():
     const ctx = canvas.getContext("2d");
     const mapCoords = document.getElementById("mapCoords");
     const mapScroll = document.querySelector(".map-scroll");
-    const roomAreaSelect = document.getElementById("roomAreaSelect");
     const mapLayerToggles = document.getElementById("mapLayerToggles");
     const editModeToggle = document.getElementById("editModeToggle");
     const tilePaintSelect = document.getElementById("tilePaintSelect");
@@ -304,24 +235,6 @@ def admin_page():
     const clearSelection = document.getElementById("clearSelection");
     const selectionCount = document.getElementById("selectionCount");
     const editStatus = document.getElementById("editStatus");
-    const assetSelect = document.getElementById("assetSelect");
-    const assetTool = document.getElementById("assetTool");
-    const assetColor = document.getElementById("assetColor");
-    const assetStroke = document.getElementById("assetStroke");
-    const undoAssetEdit = document.getElementById("undoAssetEdit");
-    const applySvgSource = document.getElementById("applySvgSource");
-    const saveAsset = document.getElementById("saveAsset");
-    const assetStatus = document.getElementById("assetStatus");
-    const svgEditorSurface = document.getElementById("svgEditorSurface");
-    const svgSource = document.getElementById("svgSource");
-    const codeFileSelect = document.getElementById("codeFileSelect");
-    const reloadCodeFile = document.getElementById("reloadCodeFile");
-    const saveCodeFile = document.getElementById("saveCodeFile");
-    const codeStatus = document.getElementById("codeStatus");
-    const codeFilePath = document.getElementById("codeFilePath");
-    const codeFileLanguage = document.getElementById("codeFileLanguage");
-    const codeFileSize = document.getElementById("codeFileSize");
-    const codeSource = document.getElementById("codeSource");
     let summary = JSON.parse(document.getElementById("initialSummary").textContent);
     let players = new Map();
     let hoverTile = null;
@@ -330,16 +243,7 @@ def admin_page():
     let editDirty = false;
     let savingEdits = false;
     let selectedTiles = new Set();
-    let activeAssetPath = "";
-    let assetDirty = false;
-    let assetHistory = [];
-    let activeDraw = null;
-    let activeCodePath = "";
-    let codeDirty = false;
-    let savingCode = false;
-    let activeRoomId = "main";
-    let activeRoomRect = null;
-    let activeRoomEntranceRect = null;
+    let liveMapCentered = false;
     const mapLayers = {
       grid: true,
       zones: true,
@@ -390,7 +294,6 @@ def admin_page():
         if (!seen.has(name)) players.delete(name);
       }
       renderTilePaintOptions();
-      renderRoomOptions();
       loadTileImages(next.design.tileOptions || []);
       updateEditControls();
     }
@@ -400,7 +303,17 @@ def admin_page():
         const response = await fetch("/api/admin/summary", { credentials: "same-origin" });
         const data = await response.json();
         if (data.ok) {
-          const nextSummary = (editMode || editDirty) ? { ...data.summary, design: summary.design } : data.summary;
+          const nextSummary = (editMode || editDirty)
+            ? {
+                ...data.summary,
+                design: {
+                  ...data.summary.design,
+                  grid: summary.design.grid,
+                  tileOverrides: summary.design.tileOverrides,
+                  blockingOverrides: summary.design.blockingOverrides,
+                },
+              }
+            : data.summary;
           applySummary(nextSummary);
         }
       } catch (error) {
@@ -417,6 +330,10 @@ def admin_page():
       if (canvas.width !== map.adminPixelWidth || canvas.height !== map.adminPixelHeight) {
         canvas.width = map.adminPixelWidth;
         canvas.height = map.adminPixelHeight;
+      }
+      if (!liveMapCentered) {
+        liveMapCentered = true;
+        requestAnimationFrame(centerLiveMap);
       }
 
       for (let y = 0; y < map.height; y += 1) {
@@ -441,154 +358,19 @@ def admin_page():
       if (mapLayers.selection) drawSelectedTiles(tile);
       if (mapLayers.hover) drawHoverTile(tile);
       if (mapLayers.players) drawPlayers(scale);
-      if (activeRoomId !== "main") drawActiveRoomOverlay(design, tile);
       requestAnimationFrame(draw);
+    }
+
+    function centerLiveMap() {
+      requestAnimationFrame(() => {
+        mapScroll.scrollLeft = Math.max(0, (mapScroll.scrollWidth - mapScroll.clientWidth) / 2);
+        mapScroll.scrollTop = Math.max(0, (mapScroll.scrollHeight - mapScroll.clientHeight) / 2);
+      });
     }
 
     // ---------------------------------------------------------------------
     // Map rendering layers
     // ---------------------------------------------------------------------
-
-    function renderRoomOptions() {
-      const rooms = summary.design.rooms || [];
-      const signature = JSON.stringify(rooms.map((room) => [room.id, room.name]));
-      if (roomAreaSelect.dataset.signature === signature) {
-        return;
-      }
-      const current = roomAreaSelect.value || activeRoomId;
-      roomAreaSelect.dataset.signature = signature;
-      roomAreaSelect.innerHTML = "";
-
-      const mainOption = document.createElement("option");
-      mainOption.value = "main";
-      mainOption.textContent = "Main Map";
-      roomAreaSelect.appendChild(mainOption);
-
-      for (const room of rooms) {
-        const option = document.createElement("option");
-        option.value = room.id;
-        option.textContent = room.name;
-        roomAreaSelect.appendChild(option);
-      }
-
-      roomAreaSelect.value = rooms.some((room) => room.id === current) ? current : "main";
-      activeRoomId = roomAreaSelect.value;
-    }
-
-    function activeRoom() {
-      return (summary.design.rooms || []).find((room) => room.id === activeRoomId) || null;
-    }
-
-    function drawActiveRoomOverlay(design, tile) {
-      const room = activeRoom();
-      if (!room) {
-        activeRoomRect = null;
-        activeRoomEntranceRect = null;
-        return;
-      }
-
-      ctx.save();
-      ctx.fillStyle = "rgba(6, 8, 11, 0.56)";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      const roomTile = Math.max(18, Math.min(34, Math.floor(Math.min(canvas.width / (room.width + 5), canvas.height / (room.height + 5)))));
-      const roomW = room.width * roomTile;
-      const roomH = room.height * roomTile;
-      const roomX = Math.round((canvas.width - roomW) / 2);
-      const roomY = Math.round((canvas.height - roomH) / 2);
-      activeRoomRect = { x: roomX, y: roomY, w: roomW, h: roomH, tile: roomTile, room };
-
-      ctx.fillStyle = "rgba(12, 15, 20, 0.94)";
-      ctx.fillRect(roomX - 18, roomY - 52, roomW + 36, roomH + 76);
-      ctx.strokeStyle = "rgba(235, 226, 176, 0.88)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(roomX - 17.5, roomY - 51.5, roomW + 35, roomH + 75);
-
-      drawRoomTiles(room, roomX, roomY, roomTile);
-      drawRoomFixtures(room, roomX, roomY, roomTile);
-      drawRoomEntrance(room, roomX, roomY, roomTile);
-
-      ctx.fillStyle = "#fff4c5";
-      ctx.font = "700 15px system-ui";
-      ctx.fillText(room.name + " · " + room.id, roomX, roomY - 34);
-      ctx.fillStyle = "#b9c4bd";
-      ctx.font = "12px system-ui";
-      ctx.fillText("Click the gangway entrance to return to the main map.", roomX, roomY - 15);
-      ctx.restore();
-    }
-
-    function drawRoomTiles(room, roomX, roomY, roomTile) {
-      for (let y = 0; y < room.height; y += 1) {
-        for (let x = 0; x < room.width; x += 1) {
-          const px = roomX + x * roomTile;
-          const py = roomY + y * roomTile;
-          const isWall = x === 0 || y === 0 || x === room.width - 1 || y === room.height - 1;
-          ctx.fillStyle = isWall ? "#241922" : ((x + y) % 2 === 0 ? "#4b3427" : "#563b2b");
-          ctx.fillRect(px, py, roomTile, roomTile);
-          ctx.strokeStyle = isWall ? "rgba(125, 106, 87, 0.44)" : "rgba(28, 18, 14, 0.55)";
-          ctx.lineWidth = 1;
-          ctx.strokeRect(px + 0.5, py + 0.5, roomTile - 1, roomTile - 1);
-        }
-      }
-    }
-
-    function drawRoomFixtures(room, roomX, roomY, roomTile) {
-      for (const fixture of room.fixtures || []) {
-        const x = roomX + fixture.x * roomTile;
-        const y = roomY + fixture.y * roomTile;
-        const w = fixture.w * roomTile;
-        const h = fixture.h * roomTile;
-        if (fixture.kind === "crate") {
-          ctx.fillStyle = "#5e412b";
-          ctx.fillRect(x + 3, y + 5, w - 6, h - 10);
-          ctx.strokeStyle = "#2f2016";
-          ctx.strokeRect(x + 3.5, y + 5.5, w - 7, h - 11);
-          ctx.strokeStyle = "#8b6840";
-          ctx.beginPath();
-          ctx.moveTo(x + 8, y + 10);
-          ctx.lineTo(x + w - 8, y + h - 10);
-          ctx.moveTo(x + w - 8, y + 10);
-          ctx.lineTo(x + 8, y + h - 10);
-          ctx.stroke();
-        } else if (fixture.kind === "table") {
-          ctx.fillStyle = "#2c2024";
-          ctx.fillRect(x + 4, y + 6, w - 8, h - 12);
-          ctx.strokeStyle = "#8d7650";
-          ctx.strokeRect(x + 8.5, y + 10.5, w - 17, h - 21);
-        } else if (fixture.kind === "porthole") {
-          ctx.fillStyle = "#16131a";
-          ctx.fillRect(x, y, w, h);
-          ctx.strokeStyle = "#6f5b4a";
-          ctx.beginPath();
-          ctx.arc(x + w / 2, y + h / 2, Math.max(6, roomTile * 0.25), 0, Math.PI * 2);
-          ctx.stroke();
-        }
-      }
-    }
-
-    function drawRoomEntrance(room, roomX, roomY, roomTile) {
-      const entrance = room.entrance;
-      if (!entrance) {
-        activeRoomEntranceRect = null;
-        return;
-      }
-      const x = roomX + entrance.x * roomTile;
-      const y = roomY + entrance.y * roomTile;
-      const w = entrance.w * roomTile;
-      const h = entrance.h * roomTile;
-      activeRoomEntranceRect = { x, y, w, h };
-
-      ctx.fillStyle = "#8b6840";
-      ctx.fillRect(x, y, w, h);
-      ctx.strokeStyle = "#f0d36b";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-      ctx.fillStyle = "#f0d36b";
-      ctx.beginPath();
-      ctx.arc(x + w / 2, y + h / 2, 5, 0, Math.PI * 2);
-      ctx.fill();
-      drawMapLabel(entrance.name + " · exit to main map", x + 4, y + h + 6, "#fff4c5", "rgba(11, 15, 17, 0.88)", "rgba(240, 211, 107, 0.72)");
-    }
 
     function drawGrid(tile, width, height) {
       ctx.strokeStyle = "rgba(255,255,255,0.035)";
@@ -1060,20 +842,6 @@ def admin_page():
       const rect = canvas.getBoundingClientRect();
       const canvasX = (event.clientX - rect.left) * (canvas.width / rect.width);
       const canvasY = (event.clientY - rect.top) * (canvas.height / rect.height);
-      if (activeRoomId !== "main" && activeRoomRect) {
-        const localX = canvasX - activeRoomRect.x;
-        const localY = canvasY - activeRoomRect.y;
-        if (localX >= 0 && localX < activeRoomRect.w && localY >= 0 && localY < activeRoomRect.h) {
-          const roomX = Math.floor(localX / activeRoomRect.tile);
-          const roomY = Math.floor(localY / activeRoomRect.tile);
-          hoverTile = null;
-          mapCoords.textContent = "Room " + activeRoomRect.room.name + " · Tile " + roomX + ", " + roomY;
-          return;
-        }
-        hoverTile = null;
-        mapCoords.textContent = "Room " + activeRoomRect.room.name + " · backdrop";
-        return;
-      }
       const worldX = Math.max(0, Math.min(map.pixelWidth - 1, Math.floor(canvasX / map.adminScale)));
       const worldY = Math.max(0, Math.min(map.pixelHeight - 1, Math.floor(canvasY / map.adminScale)));
       const tileX = Math.floor(worldX / map.tileSize);
@@ -1135,10 +903,6 @@ def admin_page():
     }
 
     function selectMapTile(event) {
-      if (activeRoomId !== "main") {
-        handleRoomPointer(event);
-        return;
-      }
       if (!editMode) return;
       const tile = tileFromPointer(event);
       if (!tile) return;
@@ -1152,45 +916,6 @@ def admin_page():
         selectedTiles.add(tile.key);
       }
       updateEditControls();
-    }
-
-    function handleRoomPointer(event) {
-      if (!activeRoomEntranceRect) return;
-      const rect = canvas.getBoundingClientRect();
-      const canvasX = (event.clientX - rect.left) * (canvas.width / rect.width);
-      const canvasY = (event.clientY - rect.top) * (canvas.height / rect.height);
-      const insideEntrance = (
-        canvasX >= activeRoomEntranceRect.x &&
-        canvasX <= activeRoomEntranceRect.x + activeRoomEntranceRect.w &&
-        canvasY >= activeRoomEntranceRect.y &&
-        canvasY <= activeRoomEntranceRect.y + activeRoomEntranceRect.h
-      );
-      if (!insideEntrance) return;
-      event.preventDefault();
-      activeRoomId = "main";
-      roomAreaSelect.value = "main";
-      activeRoomRect = null;
-      activeRoomEntranceRect = null;
-      mapCoords.textContent = "Exited room · Main map";
-    }
-
-    function changeRoomArea() {
-      activeRoomId = roomAreaSelect.value || "main";
-      selectedTiles.clear();
-      hoverTile = null;
-      activeRoomRect = null;
-      activeRoomEntranceRect = null;
-      updateEditControls();
-      if (activeRoomId === "main") {
-        mapCoords.textContent = "Tile -, - · Pixel -, -";
-      } else {
-        const room = activeRoom();
-        mapCoords.textContent = "Room " + (room?.name || activeRoomId);
-        requestAnimationFrame(() => {
-          mapScroll.scrollLeft = Math.max(0, (canvas.width - mapScroll.clientWidth) / 2);
-          mapScroll.scrollTop = Math.max(0, (canvas.height - mapScroll.clientHeight) / 2);
-        });
-      }
     }
 
     function applyPaintToSelection() {
@@ -1280,10 +1005,9 @@ def admin_page():
     function updateEditControls() {
       editModeToggle.textContent = editMode ? "Leave Edit Mode" : "Enter Edit Mode";
       editModeToggle.disabled = savingEdits;
-      const roomSelected = activeRoomId !== "main";
-      applyTilePaint.disabled = roomSelected || !editMode || !selectedTiles.size || savingEdits;
-      applyBlocking.disabled = roomSelected || !editMode || !selectedTiles.size || savingEdits;
-      clearSelection.disabled = roomSelected || !editMode || !selectedTiles.size || savingEdits;
+      applyTilePaint.disabled = !editMode || !selectedTiles.size || savingEdits;
+      applyBlocking.disabled = !editMode || !selectedTiles.size || savingEdits;
+      clearSelection.disabled = !editMode || !selectedTiles.size || savingEdits;
       selectionCount.textContent = selectedTiles.size + " selected";
     }
 
@@ -1294,8 +1018,156 @@ def admin_page():
     }
 
     // ---------------------------------------------------------------------
-    // SVG graphics asset editor
+    // Event bindings and startup
     // ---------------------------------------------------------------------
+
+    editModeToggle.addEventListener("click", toggleEditMode);
+    applyTilePaint.addEventListener("click", applyPaintToSelection);
+    applyBlocking.addEventListener("click", applyBlockingToSelection);
+    mapLayerToggles.addEventListener("change", updateMapLayer);
+    clearSelection.addEventListener("click", () => {
+      selectedTiles.clear();
+      updateEditControls();
+    });
+    canvas.addEventListener("click", selectMapTile);
+    canvas.addEventListener("mousemove", updateMapCoordinates);
+    canvas.addEventListener("mouseleave", () => {
+      hoverTile = null;
+      mapCoords.textContent = "Tile -, - · Pixel -, -";
+    });
+
+    applySummary(summary);
+    refresh();
+    draw();
+  </script>
+</body>
+</html>"""
+    return (
+        page.replace("__PLAYER_COUNT__", str(summary["players"]))
+        .replace("__SESSION_COUNT__", str(summary["activeSessions"]))
+        .replace("__SAVE_COUNT__", str(summary["saves"]))
+        .replace("__ONLINE_COUNT__", str(len(summary["onlinePlayers"])))
+        .replace("__EVENT_ROWS__", events_rows)
+        .replace("__PLAYER_ROWS__", player_rows)
+        .replace("__INITIAL_SUMMARY__", initial_summary)
+    )
+
+
+def admin_assets_page():
+    """Render the local admin graphics and code editor page."""
+    page = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MMM Admin Assets</title>
+  <style>
+    body { margin: 0; font: 15px/1.45 system-ui, sans-serif; background: #101416; color: #edf0e8; }
+    main { width: min(1800px, calc(100% - 32px)); margin: 20px auto 48px; }
+    h1, h2 { margin: 0 0 12px; }
+    h1 { font-size: 24px; }
+    h2 { font-size: 15px; color: #cfd8cd; }
+    .admin-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+    .nav-button { display: inline-flex; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 8px; border: 1px solid #425157; background: #182023; color: #edf0e8; text-decoration: none; font-weight: 700; }
+    .nav-button:hover { background: #213034; }
+    .panel { border: 1px solid #344148; border-radius: 8px; padding: 14px; background: #182023; margin-top: 12px; }
+    .asset-toolbar, .code-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+    button { padding: 8px 12px; border: 1px solid #58676c; border-radius: 6px; background: #d8e7b5; color: #11181b; font-weight: 800; cursor: pointer; }
+    button.secondary { background: #11181b; color: #edf0e8; }
+    button:disabled { opacity: .55; cursor: wait; }
+    select, input { padding: 7px 8px; border: 1px solid #425157; border-radius: 6px; background: #0b1114; color: #edf0e8; }
+    input[type="color"] { width: 42px; height: 34px; padding: 2px; }
+    label { color: #cfd8cd; font-size: 13px; font-weight: 700; }
+    .asset-workspace { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr); gap: 12px; }
+    .asset-stage { min-height: 420px; display: grid; place-items: center; overflow: auto; border: 1px solid #344148; border-radius: 6px; background: #0b1114; }
+    #svgEditorSurface { display: grid; place-items: center; min-width: 320px; min-height: 320px; padding: 18px; }
+    #svgEditorSurface svg { width: min(420px, 70vw); height: min(420px, 70vw); image-rendering: pixelated; background: rgba(255,255,255,.04); cursor: crosshair; }
+    #svgSource { width: 100%; min-height: 420px; box-sizing: border-box; padding: 10px; border: 1px solid #344148; border-radius: 6px; background: #0b1114; color: #d8e7b5; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
+    .code-toolbar select { min-width: min(520px, 100%); }
+    .code-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: #b9c4bd; font-size: 13px; margin-bottom: 8px; }
+    #codeSource { width: 100%; min-height: 620px; box-sizing: border-box; padding: 12px; border: 1px solid #344148; border-radius: 6px; background: #0b1114; color: #e5efd4; font: 13px/1.48 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; tab-size: 4; }
+    #assetStatus, #codeStatus { color: #b9c4bd; font-size: 13px; }
+    @media (max-width: 860px) { .asset-workspace { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="admin-nav">
+      <a class="nav-button" href="/admin">Game Map</a>
+      <a class="nav-button" href="/admin/rooms">Rooms</a>
+      <a class="nav-button" href="/admin/assets">Assets & Code</a>
+    </div>
+    <h1>Graphics Assets & Code Files</h1>
+    <section class="panel asset-editor">
+      <h2>Graphics Assets</h2>
+      <div class="asset-toolbar">
+        <label for="assetSelect">SVG</label>
+        <select id="assetSelect"></select>
+        <label for="assetTool">Tool</label>
+        <select id="assetTool">
+          <option value="brush">Brush</option>
+          <option value="line">Line</option>
+          <option value="rect">Rectangle</option>
+          <option value="circle">Circle</option>
+          <option value="erase">Erase Last</option>
+        </select>
+        <label for="assetColor">Color</label>
+        <input id="assetColor" type="color" value="#d8e7b5">
+        <label for="assetStroke">Size</label>
+        <input id="assetStroke" type="number" min="1" max="16" value="3">
+        <button id="undoAssetEdit" class="secondary" type="button">Undo</button>
+        <button id="applySvgSource" class="secondary" type="button">Apply Source</button>
+        <button id="saveAsset" type="button">Save SVG</button>
+        <span id="assetStatus">Select an SVG to edit.</span>
+      </div>
+      <div class="asset-workspace">
+        <div class="asset-stage"><div id="svgEditorSurface"></div></div>
+        <textarea id="svgSource" spellcheck="false" aria-label="SVG source"></textarea>
+      </div>
+    </section>
+    <section class="panel code-editor">
+      <h2>Code Files</h2>
+      <div class="code-toolbar">
+        <label for="codeFileSelect">File</label>
+        <select id="codeFileSelect"></select>
+        <button id="reloadCodeFile" class="secondary" type="button">Reload</button>
+        <button id="saveCodeFile" type="button">Save File</button>
+        <span id="codeStatus">Select a code file to edit.</span>
+      </div>
+      <div class="code-meta">
+        <span id="codeFilePath">No file loaded</span>
+        <span id="codeFileLanguage">Language -</span>
+        <span id="codeFileSize">0 bytes</span>
+      </div>
+      <textarea id="codeSource" spellcheck="false" aria-label="Project code file source"></textarea>
+    </section>
+  </main>
+  <script>
+    const assetSelect = document.getElementById("assetSelect");
+    const assetTool = document.getElementById("assetTool");
+    const assetColor = document.getElementById("assetColor");
+    const assetStroke = document.getElementById("assetStroke");
+    const undoAssetEdit = document.getElementById("undoAssetEdit");
+    const applySvgSource = document.getElementById("applySvgSource");
+    const saveAsset = document.getElementById("saveAsset");
+    const assetStatus = document.getElementById("assetStatus");
+    const svgEditorSurface = document.getElementById("svgEditorSurface");
+    const svgSource = document.getElementById("svgSource");
+    const codeFileSelect = document.getElementById("codeFileSelect");
+    const reloadCodeFile = document.getElementById("reloadCodeFile");
+    const saveCodeFile = document.getElementById("saveCodeFile");
+    const codeStatus = document.getElementById("codeStatus");
+    const codeFilePath = document.getElementById("codeFilePath");
+    const codeFileLanguage = document.getElementById("codeFileLanguage");
+    const codeFileSize = document.getElementById("codeFileSize");
+    const codeSource = document.getElementById("codeSource");
+    let activeAssetPath = "";
+    let assetDirty = false;
+    let assetHistory = [];
+    let activeDraw = null;
+    let activeCodePath = "";
+    let codeDirty = false;
+    let savingCode = false;
 
     async function loadAssetList() {
       try {
@@ -1309,9 +1181,7 @@ def admin_page():
           option.textContent = asset.name;
           assetSelect.appendChild(option);
         }
-        if (data.assets.length) {
-          await loadAsset(data.assets[0].path);
-        }
+        if (data.assets.length) await loadAsset(data.assets[0].path);
       } catch (error) {
         assetStatus.textContent = error.message;
       }
@@ -1503,10 +1373,6 @@ def admin_page():
       }
     }
 
-    // ---------------------------------------------------------------------
-    // Project code file editor
-    // ---------------------------------------------------------------------
-
     async function loadCodeFileList() {
       try {
         const response = await fetch("/api/admin/code-files", { credentials: "same-origin" });
@@ -1605,25 +1471,6 @@ def admin_page():
       codeFileSelect.disabled = savingCode;
     }
 
-    // ---------------------------------------------------------------------
-    // Event bindings and startup
-    // ---------------------------------------------------------------------
-
-    editModeToggle.addEventListener("click", toggleEditMode);
-    applyTilePaint.addEventListener("click", applyPaintToSelection);
-    applyBlocking.addEventListener("click", applyBlockingToSelection);
-    roomAreaSelect.addEventListener("change", changeRoomArea);
-    mapLayerToggles.addEventListener("change", updateMapLayer);
-    clearSelection.addEventListener("click", () => {
-      selectedTiles.clear();
-      updateEditControls();
-    });
-    canvas.addEventListener("click", selectMapTile);
-    canvas.addEventListener("mousemove", updateMapCoordinates);
-    canvas.addEventListener("mouseleave", () => {
-      hoverTile = null;
-      mapCoords.textContent = "Tile -, - · Pixel -, -";
-    });
     assetSelect.addEventListener("change", () => loadAsset(assetSelect.value));
     undoAssetEdit.addEventListener("click", undoSvgEdit);
     applySvgSource.addEventListener("click", applySvgSourceEdit);
@@ -1633,23 +1480,887 @@ def admin_page():
     saveCodeFile.addEventListener("click", saveCurrentCodeFile);
     codeSource.addEventListener("input", markCodeDirty);
 
-    applySummary(summary);
     loadAssetList();
     loadCodeFileList();
-    refresh();
-    draw();
   </script>
 </body>
 </html>"""
-    return (
-        page.replace("__PLAYER_COUNT__", str(summary["players"]))
-        .replace("__SESSION_COUNT__", str(summary["activeSessions"]))
-        .replace("__SAVE_COUNT__", str(summary["saves"]))
-        .replace("__ONLINE_COUNT__", str(len(summary["onlinePlayers"])))
-        .replace("__EVENT_ROWS__", events_rows)
-        .replace("__PLAYER_ROWS__", player_rows)
-        .replace("__INITIAL_SUMMARY__", initial_summary)
-    )
+    return page
+
+
+def admin_rooms_page():
+    """Render the local admin room editor page."""
+    summary = admin_summary()
+    initial_summary = html.escape(json.dumps(summary["design"]), quote=False)
+    page = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MMM Admin Rooms</title>
+  <style>
+    body { margin: 0; font: 15px/1.45 system-ui, sans-serif; background: #101416; color: #edf0e8; }
+    main { width: min(1800px, calc(100% - 32px)); margin: 20px auto 48px; }
+    h1, h2 { margin: 0 0 12px; }
+    h1 { font-size: 24px; }
+    .admin-nav { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+    .nav-button { display: inline-flex; align-items: center; justify-content: center; padding: 10px 14px; border-radius: 8px; border: 1px solid #425157; background: #182023; color: #edf0e8; text-decoration: none; font-weight: 700; }
+    .nav-button:hover { background: #213034; }
+    .panel { border: 1px solid #344148; border-radius: 8px; padding: 16px; background: #182023; }
+    .room-page-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .room-page-head h1 { margin-bottom: 4px; }
+    .room-page-head .status { max-width: 720px; }
+    .room-shell { display: grid; grid-template-columns: minmax(240px, 300px) minmax(640px, 1fr) minmax(260px, 330px); gap: 12px; align-items: start; }
+    .room-side { display: grid; gap: 12px; }
+    .map-panel { padding: 0; overflow: hidden; min-height: 620px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    label { display: block; margin-bottom: 4px; color: #cfd8cd; font-size: 13px; font-weight: 700; }
+    input, select, textarea { width: 100%; box-sizing: border-box; margin-bottom: 10px; padding: 9px 10px; border: 1px solid #425157; border-radius: 7px; background: #0b1114; color: #edf0e8; }
+    textarea { min-height: 300px; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
+    .form-row { margin-bottom: 10px; }
+    .button { padding: 10px 16px; border: 1px solid #58676c; border-radius: 8px; background: #d8e7b5; color: #11181b; font-weight: 800; cursor: pointer; }
+    .button.full { width: 100%; }
+    .button.secondary { background: #11181b; color: #edf0e8; }
+    .button:disabled { opacity: .55; cursor: not-allowed; }
+    .status { color: #b9c4bd; font-size: 13px; }
+    .room-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .room-meta span { display: block; color: #b9c4bd; font-size: 13px; }
+    .room-editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; border-bottom: 1px solid #344148; }
+    .room-editor-toolbar h2 { margin: 0; }
+    .room-toolbox { display: grid; gap: 10px; }
+    .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .room-toolbox label.inline { display: inline-flex; align-items: center; gap: 7px; margin: 0; }
+    .room-toolbox label.inline input { width: auto; margin: 0; }
+    .room-canvas-wrapper { overflow: auto; height: min(64vh, 620px); min-height: 420px; background: #0b1114; padding: 22px; display: grid; place-items: center; }
+    #roomEditorCanvas { display: block; width: auto; max-width: none; height: auto; background: #11181f; image-rendering: pixelated; border-radius: 6px; cursor: default; touch-action: none; box-shadow: 0 18px 42px rgba(0,0,0,.32); }
+    body.room-editing #roomEditorCanvas { cursor: grab; }
+    #roomEditorCanvas.dragging { cursor: grabbing; }
+    .room-guide, #roomCoords { color: #b9c4bd; font-size: 13px; }
+    .room-guide { display: block; flex: 1 1 360px; min-height: 0; }
+    #roomCoords { display: block; flex: 0 0 128px; margin-left: auto; padding: 9px 10px; border: 1px solid #344148; border-radius: 7px; background: #11181b; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .json-file-name { display: block; margin: -4px 0 10px; color: #b9c4bd; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    @media (max-width: 1220px) {
+      .room-shell { grid-template-columns: minmax(240px, 320px) minmax(560px, 1fr); }
+      .room-tools { grid-column: 1 / -1; }
+      .room-toolbox { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items: end; }
+    }
+    @media (max-width: 840px) {
+      .grid, .room-shell { grid-template-columns: 1fr; }
+      .room-canvas-wrapper { min-height: 420px; height: 62vh; }
+      #roomEditorCanvas { max-width: none; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="admin-nav">
+      <a class="nav-button" href="/admin">Game Map</a>
+      <a class="nav-button" href="/admin/rooms">Rooms</a>
+      <a class="nav-button" href="/admin/assets">Assets & Code</a>
+    </div>
+    <div class="room-page-head">
+      <div>
+        <h1>Room Editor</h1>
+        <span id="roomStatus" class="status">Choose a room to edit.</span>
+      </div>
+      <div class="room-meta" style="min-width: min(420px, 100%);">
+        <button type="button" id="roomEditModeToggle" class="button">Enter Edit Mode</button>
+        <button type="button" id="reloadRooms" class="button secondary">Reload Rooms</button>
+      </div>
+    </div>
+    <div class="room-shell">
+      <aside class="room-side">
+        <section class="panel">
+          <h2>Room</h2>
+          <div class="form-row">
+            <label for="roomSelect">Select a room</label>
+            <select id="roomSelect"></select>
+          </div>
+          <div class="form-row"><label for="roomId">Room ID</label><input id="roomId" readonly></div>
+          <div class="form-row"><label for="roomName">Name</label><input id="roomName"></div>
+          <div class="form-row"><label for="roomKind">Kind</label><input id="roomKind" readonly></div>
+          <div class="room-meta">
+            <div><label for="roomWidth">Width</label><input id="roomWidth" type="number" min="1"></div>
+            <div><label for="roomHeight">Height</label><input id="roomHeight" type="number" min="1"></div>
+            <div><label for="spawnX">Spawn X</label><input id="spawnX" type="number"></div>
+            <div><label for="spawnY">Spawn Y</label><input id="spawnY" type="number"></div>
+          </div>
+        </section>
+        <section class="panel">
+          <h2>Entrance</h2>
+          <div class="form-row"><label for="entranceName">Entrance Name</label><input id="entranceName"></div>
+          <div class="room-meta">
+            <div><label for="entranceX">X</label><input id="entranceX" type="number"></div>
+            <div><label for="entranceY">Y</label><input id="entranceY" type="number"></div>
+            <div><label for="entranceW">W</label><input id="entranceW" type="number" min="1"></div>
+            <div><label for="entranceH">H</label><input id="entranceH" type="number" min="1"></div>
+          </div>
+        </section>
+      </aside>
+      <section class="panel map-panel">
+        <div class="room-editor-toolbar">
+          <h2>Map</h2>
+          <span id="roomGuide" class="room-guide">Click the preview to edit the selected room element.</span>
+          <span id="roomCoords">Tile -, -</span>
+        </div>
+        <div class="room-canvas-wrapper">
+          <canvas id="roomEditorCanvas" width="640" height="420" aria-label="Room editor preview"></canvas>
+        </div>
+      </section>
+      <aside class="room-side room-tools">
+        <section class="panel room-toolbox">
+          <h2>Tools</h2>
+          <div>
+            <label for="roomTool">Tool</label>
+            <select id="roomTool">
+              <option value="selectMove">Drag/Move</option>
+              <option value="moveSpawn">Move Spawn</option>
+              <option value="moveEntrance">Move Entrance</option>
+              <option value="resize">Resize Room</option>
+              <option value="placeFixture">Place Fixture</option>
+              <option value="removeFixture">Remove Fixture</option>
+              <option value="blockTile">Block Tile</option>
+              <option value="unblockTile">Unblock Tile</option>
+            </select>
+          </div>
+          <div>
+            <label for="fixtureKind">Fixture</label>
+            <select id="fixtureKind">
+              <option value="crate">Crate</option>
+              <option value="crate-long">Long Crate</option>
+              <option value="crate-stacked">Stacked Crate</option>
+              <option value="barrel">Barrel</option>
+              <option value="ships-wheel">Ship Wheel</option>
+              <option value="ship-sail-rig">Sail Rig</option>
+              <option value="table">Table</option>
+              <option value="porthole">Porthole</option>
+            </select>
+          </div>
+          <div class="tool-grid">
+            <div><label for="fixtureWidth">W</label><input id="fixtureWidth" type="number" min="1" value="2"></div>
+            <div><label for="fixtureHeight">H</label><input id="fixtureHeight" type="number" min="1" value="1"></div>
+          </div>
+          <button type="button" id="centerRoom" class="button secondary full">Center Preview</button>
+          <label class="inline"><input id="roomLabelsToggle" type="checkbox" checked>Labels</label>
+        </section>
+      </aside>
+    </div>
+    <section class="panel" style="margin-top: 12px;">
+      <h2>Raw Room JSON</h2>
+      <span id="roomJsonFileName" class="json-file-name">rooms/-.json</span>
+      <textarea id="roomJson" spellcheck="false" aria-label="Room JSON"></textarea>
+    </section>
+  </main>
+  <script id="initialSummary" type="application/json">__INITIAL_SUMMARY__</script>
+  <script>
+    const initialDesign = JSON.parse(document.getElementById("initialSummary").textContent);
+    const rooms = initialDesign.rooms || [];
+    const roomSelect = document.getElementById("roomSelect");
+    const roomId = document.getElementById("roomId");
+    const roomName = document.getElementById("roomName");
+    const roomKind = document.getElementById("roomKind");
+    const roomWidth = document.getElementById("roomWidth");
+    const roomHeight = document.getElementById("roomHeight");
+    const spawnX = document.getElementById("spawnX");
+    const spawnY = document.getElementById("spawnY");
+    const entranceName = document.getElementById("entranceName");
+    const entranceX = document.getElementById("entranceX");
+    const entranceY = document.getElementById("entranceY");
+    const entranceW = document.getElementById("entranceW");
+    const entranceH = document.getElementById("entranceH");
+    const roomJsonFileName = document.getElementById("roomJsonFileName");
+    const roomJson = document.getElementById("roomJson");
+    const reloadRooms = document.getElementById("reloadRooms");
+    const roomEditModeToggle = document.getElementById("roomEditModeToggle");
+    const roomStatus = document.getElementById("roomStatus");
+    const roomCanvas = document.getElementById("roomEditorCanvas");
+    const roomCanvasWrapper = document.querySelector(".room-canvas-wrapper");
+    const roomCtx = roomCanvas.getContext("2d");
+    const roomTool = document.getElementById("roomTool");
+    const fixtureKind = document.getElementById("fixtureKind");
+    const fixtureWidth = document.getElementById("fixtureWidth");
+    const fixtureHeight = document.getElementById("fixtureHeight");
+    const centerRoom = document.getElementById("centerRoom");
+    const roomLabelsToggle = document.getElementById("roomLabelsToggle");
+    const roomGuide = document.getElementById("roomGuide");
+    const roomCoords = document.getElementById("roomCoords");
+    let currentRoom = null;
+    let roomScale = 36;
+    let roomOffset = { x: 0, y: 0 };
+    let roomDrag = null;
+    let roomEditMode = false;
+    let roomDirty = false;
+    let savingRoom = false;
+    let showRoomLabels = true;
+    const fixtureAssets = {
+      barrel: "assets/graphics/barrel.svg",
+      crate: "assets/graphics/crate.svg",
+      "crate-long": "assets/graphics/crate-long.svg",
+      "crate-stacked": "assets/graphics/crate-stacked.svg",
+      "ship-sail-rig": "assets/graphics/ship-sail-rig.svg",
+      "ships-wheel": "assets/graphics/ships-wheel.svg",
+    };
+    const fixtureImages = Object.fromEntries(Object.entries(fixtureAssets).map(([kind, path]) => {
+      const img = new Image();
+      img.onload = () => renderRoomEditor();
+      img.src = "/" + path;
+      return [kind, img];
+    }));
+
+    function populateRoomList(preferredRoomId = roomSelect.value) {
+      roomSelect.innerHTML = "";
+      for (const room of rooms) {
+        const option = document.createElement("option");
+        option.value = room.id;
+        option.textContent = room.name + " (" + room.id + ")";
+        roomSelect.appendChild(option);
+      }
+      if (rooms.length) {
+        const selected = rooms.find((room) => room.id === preferredRoomId) || rooms[0];
+        roomSelect.value = selected.id;
+        setActiveRoom(selected);
+      }
+    }
+
+    function replaceRooms(nextRooms, preferredRoomId = roomSelect.value) {
+      rooms.length = 0;
+      rooms.push(...nextRooms);
+      populateRoomList(preferredRoomId);
+    }
+
+    function setActiveRoom(room) {
+      currentRoom = JSON.parse(JSON.stringify(room));
+      roomId.value = currentRoom.id || "";
+      roomName.value = currentRoom.name || "";
+      roomKind.value = currentRoom.kind || "";
+      roomWidth.value = currentRoom.width || "";
+      roomHeight.value = currentRoom.height || "";
+      spawnX.value = currentRoom.spawn?.x ?? "";
+      spawnY.value = currentRoom.spawn?.y ?? "";
+      entranceName.value = currentRoom.entrance?.name || "";
+      entranceX.value = currentRoom.entrance?.x ?? "";
+      entranceY.value = currentRoom.entrance?.y ?? "";
+      entranceW.value = currentRoom.entrance?.w ?? "";
+      entranceH.value = currentRoom.entrance?.h ?? "";
+      normalizeBlockedTiles();
+      roomJson.value = JSON.stringify(currentRoom, null, 2);
+      updateRoomJsonFileName();
+      roomStatus.textContent = "Editing room " + currentRoom.id + ".";
+      roomOffset = { x: 0, y: 0 };
+      roomDirty = false;
+      renderRoomEditor();
+      requestAnimationFrame(centerRoomPreview);
+      updateRoomEditControls();
+    }
+
+    function syncFormToRoom({ markDirty = true } = {}) {
+      if (!currentRoom) return;
+      currentRoom.name = roomName.value;
+      currentRoom.width = Math.max(1, Number(roomWidth.value) || 1);
+      currentRoom.height = Math.max(1, Number(roomHeight.value) || 1);
+      currentRoom.spawn = { x: Number(spawnX.value) || 0, y: Number(spawnY.value) || 0 };
+      currentRoom.entrance = {
+        ...currentRoom.entrance,
+        name: entranceName.value,
+        x: Number(entranceX.value) || 0,
+        y: Number(entranceY.value) || 0,
+        w: Math.max(1, Number(entranceW.value) || 1),
+        h: Math.max(1, Number(entranceH.value) || 1),
+      };
+      normalizeBlockedTiles();
+      roomJson.value = JSON.stringify(currentRoom, null, 2);
+      if (markDirty) markRoomDirty("Unsaved room changes.");
+      renderRoomEditor();
+    }
+
+    function markRoomDirty(message = "Unsaved room changes.") {
+      roomDirty = true;
+      roomStatus.textContent = message;
+      updateRoomEditControls();
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function clampRectToRoom(rect) {
+      const width = Math.max(1, rect.w || 1);
+      const height = Math.max(1, rect.h || 1);
+      rect.w = Math.min(width, currentRoom.width);
+      rect.h = Math.min(height, currentRoom.height);
+      rect.x = clamp(Number(rect.x) || 0, 0, Math.max(0, currentRoom.width - rect.w));
+      rect.y = clamp(Number(rect.y) || 0, 0, Math.max(0, currentRoom.height - rect.h));
+    }
+
+    function normalizeBlockedTiles() {
+      if (!currentRoom) return;
+      const blocked = new Set();
+      for (const key of currentRoom.blockedTiles || []) {
+        const [x, y] = String(key).split(",", 2).map(Number);
+        if (Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < currentRoom.width && y < currentRoom.height) {
+          blocked.add(x + "," + y);
+        }
+      }
+      currentRoom.blockedTiles = Array.from(blocked).sort((a, b) => {
+        const [ax, ay] = a.split(",").map(Number);
+        const [bx, by] = b.split(",").map(Number);
+        return ay - by || ax - bx;
+      });
+    }
+
+    function setTileBlocked(tile, blocked) {
+      if (!currentRoom || !tileInRoom(tile)) return;
+      const blockedTiles = new Set(currentRoom.blockedTiles || []);
+      const key = tile.x + "," + tile.y;
+      if (blocked) {
+        blockedTiles.add(key);
+      } else {
+        blockedTiles.delete(key);
+      }
+      currentRoom.blockedTiles = Array.from(blockedTiles);
+      normalizeBlockedTiles();
+      syncRoomJson();
+      markRoomDirty((blocked ? "Blocked " : "Unblocked ") + tile.x + "," + tile.y + ".");
+      renderRoomEditor();
+    }
+
+    function syncRoomJson() {
+      roomJson.value = JSON.stringify(currentRoom, null, 2);
+      updateRoomJsonFileName();
+    }
+
+    function updateRoomJsonFileName() {
+      roomJsonFileName.textContent = "rooms/" + (currentRoom?.id || "-") + ".json";
+    }
+
+    function renderRoomEditor() {
+      if (!currentRoom) return;
+      const width = currentRoom.width || 1;
+      const height = currentRoom.height || 1;
+      const tileSize = Math.max(18, Math.min(36, Math.floor(Math.min(560 / width, 380 / height))));
+      roomScale = tileSize;
+      roomCanvas.width = width * tileSize + 2;
+      roomCanvas.height = height * tileSize + 2;
+      roomCtx.clearRect(0, 0, roomCanvas.width, roomCanvas.height);
+      roomCtx.fillStyle = "#10181e";
+      roomCtx.fillRect(0, 0, roomCanvas.width, roomCanvas.height);
+
+      roomCtx.strokeStyle = "#425157";
+      roomCtx.lineWidth = 1;
+      for (let x = 0; x <= width; x += 1) {
+        roomCtx.beginPath();
+        roomCtx.moveTo(x * tileSize + 0.5, 0);
+        roomCtx.lineTo(x * tileSize + 0.5, height * tileSize);
+        roomCtx.stroke();
+      }
+      for (let y = 0; y <= height; y += 1) {
+        roomCtx.beginPath();
+        roomCtx.moveTo(0, y * tileSize + 0.5);
+        roomCtx.lineTo(width * tileSize, y * tileSize + 0.5);
+        roomCtx.stroke();
+      }
+
+      roomCtx.fillStyle = "rgba(57, 105, 156, 0.16)";
+      roomCtx.fillRect(0, 0, width * tileSize, height * tileSize);
+      roomCtx.strokeStyle = "#d8e7b5";
+      roomCtx.lineWidth = 2;
+      roomCtx.strokeRect(0.5, 0.5, width * tileSize - 1, height * tileSize - 1);
+
+      const blockedTiles = new Set(currentRoom.blockedTiles || []);
+      for (const key of blockedTiles) {
+        const [blockedX, blockedY] = key.split(",").map(Number);
+        if (blockedX < 0 || blockedY < 0 || blockedX >= width || blockedY >= height) continue;
+        const px = blockedX * tileSize;
+        const py = blockedY * tileSize;
+        roomCtx.fillStyle = "rgba(196, 64, 64, 0.34)";
+        roomCtx.fillRect(px + 2, py + 2, tileSize - 4, tileSize - 4);
+        roomCtx.strokeStyle = "#ff8c8c";
+        roomCtx.lineWidth = 2;
+        roomCtx.beginPath();
+        roomCtx.moveTo(px + 8, py + 8);
+        roomCtx.lineTo(px + tileSize - 8, py + tileSize - 8);
+        roomCtx.moveTo(px + tileSize - 8, py + 8);
+        roomCtx.lineTo(px + 8, py + tileSize - 8);
+        roomCtx.stroke();
+      }
+
+      if (currentRoom.entrance) {
+        const ex = Math.min(width - 1, Math.max(0, currentRoom.entrance.x));
+        const ey = Math.min(height - 1, Math.max(0, currentRoom.entrance.y));
+        const ew = Math.max(1, Math.min(width - ex, currentRoom.entrance.w || 1));
+        const eh = Math.max(1, Math.min(height - ey, currentRoom.entrance.h || 1));
+        roomCtx.fillStyle = "rgba(240, 211, 107, 0.28)";
+        roomCtx.fillRect(ex * tileSize + 1, ey * tileSize + 1, ew * tileSize - 2, eh * tileSize - 2);
+        roomCtx.strokeStyle = "#f0d36b";
+        roomCtx.lineWidth = 2;
+        roomCtx.strokeRect(ex * tileSize + 1.5, ey * tileSize + 1.5, ew * tileSize - 3, eh * tileSize - 3);
+        roomCtx.fillStyle = "#f0d36b";
+        roomCtx.font = "12px system-ui";
+        roomCtx.fillText("ENT", ex * tileSize + 6, ey * tileSize + 18);
+        if (showRoomLabels) {
+          drawRoomEditorLabel(currentRoom.entrance.name || "Entrance", ex * tileSize + 4, ey * tileSize + eh * tileSize + 6, "#fff4c5", "rgba(20, 18, 12, 0.88)", "#f0d36b");
+        }
+      }
+
+      for (const entrance of currentRoom.entrances || []) {
+        const ex = Math.min(width - 1, Math.max(0, entrance.x));
+        const ey = Math.min(height - 1, Math.max(0, entrance.y));
+        const ew = Math.max(1, Math.min(width - ex, entrance.w || 1));
+        const eh = Math.max(1, Math.min(height - ey, entrance.h || 1));
+        roomCtx.fillStyle = "rgba(216, 208, 184, 0.22)";
+        roomCtx.fillRect(ex * tileSize + 1, ey * tileSize + 1, ew * tileSize - 2, eh * tileSize - 2);
+        roomCtx.strokeStyle = "#d8d0b8";
+        roomCtx.lineWidth = 2;
+        roomCtx.strokeRect(ex * tileSize + 1.5, ey * tileSize + 1.5, ew * tileSize - 3, eh * tileSize - 3);
+        roomCtx.fillStyle = "#d8d0b8";
+        roomCtx.font = "12px system-ui";
+        roomCtx.fillText("DOWN", ex * tileSize + 6, ey * tileSize + 18);
+        if (showRoomLabels) {
+          drawRoomEditorLabel(entrance.name || "Entrance", ex * tileSize + 4, ey * tileSize + eh * tileSize + 6, "#f7f0d9", "rgba(20, 18, 12, 0.88)", "#d8d0b8");
+        }
+      }
+
+      if (currentRoom.spawn) {
+        const sx = Math.min(width - 1, Math.max(0, currentRoom.spawn.x));
+        const sy = Math.min(height - 1, Math.max(0, currentRoom.spawn.y));
+        const centerX = sx * tileSize + tileSize / 2;
+        const centerY = sy * tileSize + tileSize / 2;
+        roomCtx.fillStyle = "#8fd3ff";
+        roomCtx.beginPath();
+        roomCtx.arc(centerX, centerY, Math.max(6, tileSize * 0.22), 0, Math.PI * 2);
+        roomCtx.fill();
+        roomCtx.strokeStyle = "#0b1114";
+        roomCtx.lineWidth = 2;
+        roomCtx.stroke();
+        if (showRoomLabels) {
+          drawRoomEditorLabel("Spawn", centerX + 8, centerY - 12, "#dff4ff", "rgba(7, 18, 28, 0.88)", "#8fd3ff");
+        }
+      }
+
+      if (Array.isArray(currentRoom.fixtures)) {
+        for (const [index, fixture] of currentRoom.fixtures.entries()) {
+          const fx = Math.max(0, Math.min(width - 1, fixture.x || 0));
+          const fy = Math.max(0, Math.min(height - 1, fixture.y || 0));
+          const fw = Math.max(1, Math.min(width - fx, fixture.w || 1));
+          const fh = Math.max(1, Math.min(height - fy, fixture.h || 1));
+          const px = fx * tileSize + 2;
+          const py = fy * tileSize + 2;
+          const pw = fw * tileSize - 4;
+          const ph = fh * tileSize - 4;
+          roomCtx.fillStyle = "rgba(76, 63, 48, 0.78)";
+          roomCtx.fillRect(px, py, pw, ph);
+          const fixtureImg = fixtureImages[fixture.kind || ""];
+          if (fixtureImg && fixtureImg.complete && fixtureImg.naturalWidth > 0) {
+            roomCtx.drawImage(fixtureImg, px, py, pw, ph);
+          }
+          roomCtx.strokeStyle = "#b9c4bd";
+          roomCtx.lineWidth = 1;
+          roomCtx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+          if (showRoomLabels) {
+            drawRoomEditorLabel((fixture.kind || "Fixture") + " " + (index + 1), fx * tileSize + 5, fy * tileSize + 5, "#edf0e8", "rgba(20, 14, 10, 0.88)", "#b9c4bd");
+          }
+        }
+      }
+
+      if (showRoomLabels) {
+        for (const key of blockedTiles) {
+          const [blockedX, blockedY] = key.split(",").map(Number);
+          if (blockedX < 0 || blockedY < 0 || blockedX >= width || blockedY >= height) continue;
+          drawRoomEditorLabel("Blocked", blockedX * tileSize + 5, blockedY * tileSize + tileSize - 21, "#ffdede", "rgba(35, 12, 12, 0.88)", "#ff8c8c");
+        }
+      }
+    }
+
+    function drawRoomEditorLabel(label, x, y, fillColor, backgroundColor, borderColor) {
+      roomCtx.save();
+      roomCtx.font = "700 11px system-ui";
+      roomCtx.textBaseline = "top";
+      const paddingX = 6;
+      const labelWidth = roomCtx.measureText(label).width + paddingX * 2;
+      const labelHeight = 20;
+      const labelX = Math.max(3, Math.min(x, roomCanvas.width - labelWidth - 3));
+      const labelY = Math.max(3, Math.min(y, roomCanvas.height - labelHeight - 3));
+      roomCtx.fillStyle = backgroundColor;
+      roomCtx.fillRect(labelX, labelY, labelWidth, labelHeight);
+      roomCtx.strokeStyle = borderColor;
+      roomCtx.lineWidth = 1;
+      roomCtx.strokeRect(labelX + 0.5, labelY + 0.5, labelWidth - 1, labelHeight - 1);
+      roomCtx.fillStyle = fillColor;
+      roomCtx.fillText(label, labelX + paddingX, labelY + 5);
+      roomCtx.restore();
+    }
+
+    function getRoomTileFromEvent(event) {
+      const rect = roomCanvas.getBoundingClientRect();
+      const clientX = (event.clientX - rect.left) * (roomCanvas.width / rect.width);
+      const clientY = (event.clientY - rect.top) * (roomCanvas.height / rect.height);
+      const x = Math.floor(clientX / roomScale);
+      const y = Math.floor(clientY / roomScale);
+      return { x, y };
+    }
+
+    function updateRoomCoordinates(event) {
+      if (!currentRoom) return;
+      const tile = getRoomTileFromEvent(event);
+      if (tileInRoom(tile)) {
+        roomCoords.textContent = "Tile " + tile.x + ", " + tile.y;
+      } else {
+        roomCoords.textContent = "Tile -, -";
+      }
+    }
+
+    function tileInRoom(tile) {
+      return Boolean(tile && tile.x >= 0 && tile.y >= 0 && tile.x < currentRoom.width && tile.y < currentRoom.height);
+    }
+
+    function fixtureAtTile(tile) {
+      if (!tileInRoom(tile)) return null;
+      for (let index = (currentRoom.fixtures || []).length - 1; index >= 0; index -= 1) {
+        const fixture = currentRoom.fixtures[index];
+        const w = Math.max(1, fixture.w || 1);
+        const h = Math.max(1, fixture.h || 1);
+        if (tile.x >= fixture.x && tile.y >= fixture.y && tile.x < fixture.x + w && tile.y < fixture.y + h) {
+          return { index, fixture };
+        }
+      }
+      return null;
+    }
+
+    function rectContainsTile(rect, tile) {
+      if (!rect || !tileInRoom(tile)) return false;
+      const w = Math.max(1, rect.w || 1);
+      const h = Math.max(1, rect.h || 1);
+      return tile.x >= rect.x && tile.y >= rect.y && tile.x < rect.x + w && tile.y < rect.y + h;
+    }
+
+    function syncRoomFormFromCurrent({ markDirty = true } = {}) {
+      roomName.value = currentRoom.name || "";
+      roomKind.value = currentRoom.kind || "";
+      roomWidth.value = currentRoom.width || "";
+      roomHeight.value = currentRoom.height || "";
+      spawnX.value = currentRoom.spawn?.x ?? "";
+      spawnY.value = currentRoom.spawn?.y ?? "";
+      entranceName.value = currentRoom.entrance?.name || "";
+      entranceX.value = currentRoom.entrance?.x ?? "";
+      entranceY.value = currentRoom.entrance?.y ?? "";
+      entranceW.value = currentRoom.entrance?.w ?? "";
+      entranceH.value = currentRoom.entrance?.h ?? "";
+      syncRoomJson();
+      if (markDirty) markRoomDirty();
+    }
+
+    function moveDragTarget(tile) {
+      if (!roomDrag || !tileInRoom(tile)) return;
+      if (roomDrag.type === "fixture") {
+        const fixture = currentRoom.fixtures[roomDrag.index];
+        if (!fixture) return;
+        fixture.x = tile.x - roomDrag.offsetX;
+        fixture.y = tile.y - roomDrag.offsetY;
+        clampRectToRoom(fixture);
+        roomStatus.textContent = "Moved " + fixture.kind + " to " + fixture.x + "," + fixture.y + ".";
+      } else if (roomDrag.type === "entrance") {
+        currentRoom.entrance.x = tile.x - roomDrag.offsetX;
+        currentRoom.entrance.y = tile.y - roomDrag.offsetY;
+        clampRectToRoom(currentRoom.entrance);
+        roomStatus.textContent = "Moved entrance to " + currentRoom.entrance.x + "," + currentRoom.entrance.y + ".";
+      } else if (roomDrag.type === "spawn") {
+        currentRoom.spawn = { x: tile.x, y: tile.y };
+        roomStatus.textContent = "Moved spawn to " + tile.x + "," + tile.y + ".";
+      } else if (roomDrag.type === "blockPaint") {
+        setTileBlocked(tile, roomDrag.blocked);
+        roomStatus.textContent = (roomDrag.blocked ? "Blocked " : "Unblocked ") + tile.x + "," + tile.y + ".";
+        return;
+      }
+      normalizeBlockedTiles();
+      syncRoomFormFromCurrent();
+      renderRoomEditor();
+    }
+
+    function handleRoomPointerDown(event) {
+      if (!roomEditMode || !currentRoom || event.button !== 0) return;
+      const tile = getRoomTileFromEvent(event);
+      if (!tileInRoom(tile)) return;
+      event.preventDefault();
+      roomCanvas.setPointerCapture(event.pointerId);
+      roomCanvas.classList.add("dragging");
+      const tool = roomTool.value;
+
+      if (tool === "blockTile" || tool === "unblockTile") {
+        roomDrag = { type: "blockPaint", blocked: tool === "blockTile" };
+        moveDragTarget(tile);
+        return;
+      }
+      if (tool === "moveSpawn") {
+        roomDrag = { type: "spawn" };
+        moveDragTarget(tile);
+        return;
+      }
+      if (tool === "moveEntrance" && currentRoom.entrance) {
+        roomDrag = {
+          type: "entrance",
+          offsetX: clamp(tile.x - currentRoom.entrance.x, 0, Math.max(0, (currentRoom.entrance.w || 1) - 1)),
+          offsetY: clamp(tile.y - currentRoom.entrance.y, 0, Math.max(0, (currentRoom.entrance.h || 1) - 1)),
+        };
+        moveDragTarget(tile);
+        return;
+      }
+      if (tool === "selectMove") {
+        const hitFixture = fixtureAtTile(tile);
+        if (hitFixture) {
+          roomDrag = {
+            type: "fixture",
+            index: hitFixture.index,
+            offsetX: tile.x - hitFixture.fixture.x,
+            offsetY: tile.y - hitFixture.fixture.y,
+          };
+        } else if (rectContainsTile(currentRoom.entrance, tile)) {
+          roomDrag = {
+            type: "entrance",
+            offsetX: tile.x - currentRoom.entrance.x,
+            offsetY: tile.y - currentRoom.entrance.y,
+          };
+        } else if (currentRoom.spawn && currentRoom.spawn.x === tile.x && currentRoom.spawn.y === tile.y) {
+          roomDrag = { type: "spawn" };
+        }
+        if (roomDrag) {
+          moveDragTarget(tile);
+          return;
+        }
+      }
+      handleRoomClick(event);
+    }
+
+    function handleRoomPointerMove(event) {
+      updateRoomCoordinates(event);
+      if (!roomEditMode || !roomDrag || !currentRoom) return;
+      event.preventDefault();
+      moveDragTarget(getRoomTileFromEvent(event));
+    }
+
+    function finishRoomDrag(event) {
+      roomCanvas.classList.remove("dragging");
+      if (roomCanvas.hasPointerCapture?.(event.pointerId)) {
+        roomCanvas.releasePointerCapture(event.pointerId);
+      }
+      if (!roomDrag) return;
+      roomDrag = null;
+    }
+
+    function handleRoomClick(event) {
+      if (!currentRoom) return;
+      const tile = getRoomTileFromEvent(event);
+      if (!tileInRoom(tile)) return;
+      if (roomTool.value === "moveSpawn") {
+        roomStatus.textContent = "Spawn moved to " + tile.x + "," + tile.y + ".";
+        spawnX.value = tile.x;
+        spawnY.value = tile.y;
+      } else if (roomTool.value === "moveEntrance") {
+        roomStatus.textContent = "Entrance moved to " + tile.x + "," + tile.y + ".";
+        entranceX.value = tile.x;
+        entranceY.value = tile.y;
+      } else if (roomTool.value === "resize") {
+        roomStatus.textContent = "Room resized to " + (tile.x + 1) + "×" + (tile.y + 1) + ".";
+        roomWidth.value = tile.x + 1;
+        roomHeight.value = tile.y + 1;
+      } else if (roomTool.value === "placeFixture") {
+        const kind = fixtureKind.value;
+        const width = Math.max(1, Number(fixtureWidth.value) || 1);
+        const height = Math.max(1, Number(fixtureHeight.value) || 1);
+        const fixture = { kind, x: tile.x, y: tile.y, w: kind === "porthole" ? 1 : width, h: kind === "porthole" ? 1 : height };
+        currentRoom.fixtures = currentRoom.fixtures || [];
+        currentRoom.fixtures.push(fixture);
+        roomStatus.textContent = "Added " + kind + " at " + tile.x + "," + tile.y + ".";
+      } else if (roomTool.value === "removeFixture") {
+        const before = (currentRoom.fixtures || []).length;
+        currentRoom.fixtures = (currentRoom.fixtures || []).filter((fixture) => {
+          return !(tile.x >= fixture.x && tile.y >= fixture.y && tile.x < fixture.x + fixture.w && tile.y < fixture.y + fixture.h);
+        });
+        const removed = before - currentRoom.fixtures.length;
+        roomStatus.textContent = removed ? "Removed " + removed + " fixture(s)." : "No fixture found at " + tile.x + "," + tile.y + ".";
+      } else if (roomTool.value === "blockTile") {
+        setTileBlocked(tile, true);
+        roomStatus.textContent = "Blocked " + tile.x + "," + tile.y + ".";
+        return;
+      } else if (roomTool.value === "unblockTile") {
+        setTileBlocked(tile, false);
+        roomStatus.textContent = "Unblocked " + tile.x + "," + tile.y + ".";
+        return;
+      }
+      syncFormToRoom();
+    }
+
+    function updateRoomGuide() {
+      if (roomTool.value === "selectMove") {
+        roomGuide.textContent = "Drag the entrance, spawn marker, or a fixture to move it.";
+      } else if (roomTool.value === "moveSpawn") {
+        roomGuide.textContent = "Click or drag on the room grid to place the player spawn.";
+      } else if (roomTool.value === "moveEntrance") {
+        roomGuide.textContent = "Click or drag on the room grid to position the entrance.";
+      } else if (roomTool.value === "resize") {
+        roomGuide.textContent = "Click the room grid to resize the room from the top-left.";
+      } else if (roomTool.value === "placeFixture") {
+        roomGuide.textContent = "Click the room grid to place a fixture at the selected tile.";
+      } else if (roomTool.value === "removeFixture") {
+        roomGuide.textContent = "Click a fixture to remove it from the room.";
+      } else if (roomTool.value === "blockTile") {
+        roomGuide.textContent = "Click or drag across tiles to block movement.";
+      } else if (roomTool.value === "unblockTile") {
+        roomGuide.textContent = "Click or drag across tiles to unblock movement.";
+      }
+    }
+
+    function centerRoomPreview() {
+      roomCanvasWrapper.scrollLeft = Math.max(0, (roomCanvasWrapper.scrollWidth - roomCanvasWrapper.clientWidth) / 2);
+      roomCanvasWrapper.scrollTop = Math.max(0, (roomCanvasWrapper.scrollHeight - roomCanvasWrapper.clientHeight) / 2);
+    }
+
+    function syncRoomToForm() {
+      try {
+        const parsed = JSON.parse(roomJson.value);
+        if (parsed.id !== roomId.value) {
+          roomStatus.textContent = "Room JSON id must match the selected room.";
+          return;
+        }
+        currentRoom = parsed;
+        normalizeBlockedTiles();
+        syncRoomFormFromCurrent();
+        updateRoomJsonFileName();
+        roomStatus.textContent = "Room JSON parsed.";
+        renderRoomEditor();
+      } catch (error) {
+        roomStatus.textContent = "Invalid JSON: " + error.message;
+      }
+    }
+
+    async function reloadDesign() {
+      roomStatus.textContent = "Reloading room list...";
+      try {
+        const response = await fetch("/api/admin/summary", { credentials: "same-origin" });
+        const data = await response.json();
+        if (!data.ok) throw new Error(data.error || "Could not load summary.");
+        const nextRooms = data.summary.design.rooms || [];
+        replaceRooms(nextRooms);
+        roomStatus.textContent = "Room list reloaded.";
+      } catch (error) {
+        roomStatus.textContent = error.message;
+      }
+    }
+
+    async function saveCurrentRoom() {
+      if (!currentRoom) return;
+      roomStatus.textContent = "Saving room...";
+      savingRoom = true;
+      updateRoomEditControls();
+      try {
+        syncFormToRoom({ markDirty: false });
+        const response = await fetch("/api/admin/room", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ room: currentRoom }),
+        });
+        const data = await response.json();
+        if (!data.ok) throw new Error(data.error || "Could not save room.");
+        if (data.design?.rooms) {
+          replaceRooms(data.design.rooms, currentRoom.id);
+        }
+        roomDirty = false;
+        roomStatus.textContent = "Saved room " + currentRoom.id + ".";
+        return true;
+      } catch (error) {
+        roomStatus.textContent = error.message;
+        return false;
+      } finally {
+        savingRoom = false;
+        updateRoomEditControls();
+      }
+    }
+
+    async function toggleRoomEditMode() {
+      if (roomEditMode) {
+        const saved = await saveCurrentRoom();
+        if (!saved) return;
+        roomEditMode = false;
+        roomDrag = null;
+        roomCanvas.classList.remove("dragging");
+        document.body.classList.remove("room-editing");
+        roomStatus.textContent = "Edit mode off.";
+      } else {
+        roomEditMode = true;
+        document.body.classList.add("room-editing");
+        roomStatus.textContent = "Edit mode on. Drag objects or paint blocked tiles.";
+      }
+      updateRoomEditControls();
+    }
+
+    function updateRoomEditControls() {
+      roomEditModeToggle.textContent = roomEditMode ? "Exit Edit Mode & Save" : "Enter Edit Mode";
+      roomEditModeToggle.disabled = savingRoom || !currentRoom;
+      roomSelect.disabled = roomEditMode || savingRoom;
+      reloadRooms.disabled = roomEditMode || savingRoom;
+      roomTool.disabled = !roomEditMode || savingRoom;
+      fixtureKind.disabled = !roomEditMode || savingRoom;
+      fixtureWidth.disabled = !roomEditMode || savingRoom;
+      fixtureHeight.disabled = !roomEditMode || savingRoom;
+      centerRoom.disabled = savingRoom;
+      roomLabelsToggle.disabled = savingRoom;
+      const formDisabled = !roomEditMode || savingRoom;
+      roomName.disabled = formDisabled;
+      roomWidth.disabled = formDisabled;
+      roomHeight.disabled = formDisabled;
+      spawnX.disabled = formDisabled;
+      spawnY.disabled = formDisabled;
+      entranceName.disabled = formDisabled;
+      entranceX.disabled = formDisabled;
+      entranceY.disabled = formDisabled;
+      entranceW.disabled = formDisabled;
+      entranceH.disabled = formDisabled;
+      roomJson.disabled = formDisabled;
+    }
+
+    roomSelect.addEventListener("change", () => {
+      const selected = rooms.find((room) => room.id === roomSelect.value);
+      if (selected) setActiveRoom(selected);
+    });
+    reloadRooms.addEventListener("click", reloadDesign);
+    roomEditModeToggle.addEventListener("click", toggleRoomEditMode);
+    roomName.addEventListener("input", syncFormToRoom);
+    roomWidth.addEventListener("input", syncFormToRoom);
+    roomHeight.addEventListener("input", syncFormToRoom);
+    spawnX.addEventListener("input", syncFormToRoom);
+    spawnY.addEventListener("input", syncFormToRoom);
+    entranceName.addEventListener("input", syncFormToRoom);
+    entranceX.addEventListener("input", syncFormToRoom);
+    entranceY.addEventListener("input", syncFormToRoom);
+    entranceW.addEventListener("input", syncFormToRoom);
+    entranceH.addEventListener("input", syncFormToRoom);
+    fixtureKind.addEventListener("change", updateRoomGuide);
+    fixtureWidth.addEventListener("input", updateRoomGuide);
+    fixtureHeight.addEventListener("input", updateRoomGuide);
+    roomLabelsToggle.addEventListener("change", () => {
+      showRoomLabels = roomLabelsToggle.checked;
+      renderRoomEditor();
+    });
+    roomTool.addEventListener("change", updateRoomGuide);
+    centerRoom.addEventListener("click", centerRoomPreview);
+    roomCanvas.addEventListener("pointerdown", handleRoomPointerDown);
+    roomCanvas.addEventListener("pointermove", handleRoomPointerMove);
+    roomCanvas.addEventListener("pointerup", finishRoomDrag);
+    roomCanvas.addEventListener("pointercancel", finishRoomDrag);
+    roomCanvas.addEventListener("pointerleave", (event) => {
+      roomCoords.textContent = "Tile -, -";
+      finishRoomDrag(event);
+    });
+    roomJson.addEventListener("input", syncRoomToForm);
+
+    updateRoomGuide();
+    populateRoomList();
+    updateRoomEditControls();
+  </script>
+</body>
+</html>"""
+    return page.replace("__INITIAL_SUMMARY__", initial_summary)
 
 
 def _safe_json(raw):

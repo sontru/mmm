@@ -1,6 +1,7 @@
+import copy
 import math
 
-from .design_settings import apply_tile_overrides, design_settings
+from .design_settings import apply_tile_overrides, apply_room_overrides, design_settings
 
 
 TILE_SIZE = 48
@@ -140,31 +141,73 @@ DESIGN_NOTES = [
 ROOMS = [
     {
         "id": "harbour-ship-deck",
-        "name": "Supply Ship Mercy",
+        "name": "Ship - upper deck",
         "kind": "ship",
-        "width": 12,
+        "width": 20,
         "height": 8,
         "entrance": {
             "id": "harbour-ship-gangway",
             "name": "Gangway to Abbey Island",
-            "x": 5,
+            "x": 9,
             "y": 7,
             "w": 2,
             "h": 1,
             "exitArea": "island",
             "exitTile": {"x": 46, "y": 14},
         },
-        "spawn": {"x": 5, "y": 6},
-        "fixtures": [
-            {"kind": "crate", "x": 1, "y": 1, "w": 2, "h": 1},
-            {"kind": "crate", "x": 9, "y": 1, "w": 2, "h": 1},
-            {"kind": "crate", "x": 1, "y": 5, "w": 2, "h": 1},
-            {"kind": "crate", "x": 8, "y": 5, "w": 2, "h": 1},
-            {"kind": "porthole", "x": 4, "y": 2, "w": 1, "h": 1},
-            {"kind": "porthole", "x": 7, "y": 2, "w": 1, "h": 1},
-            {"kind": "table", "x": 5, "y": 3, "w": 2, "h": 1},
+        "entrances": [
+            {
+                "id": "harbour-ship-lower-deck",
+                "name": "Stairs to Lower Deck",
+                "x": 9,
+                "y": 0,
+                "w": 2,
+                "h": 2,
+                "exitArea": "harbour-ship-lower-deck",
+            },
         ],
-    }
+        "spawn": {"x": 9, "y": 6},
+        "fixtures": [
+            {"kind": "crate-long", "x": 1, "y": 1, "w": 2, "h": 1},
+            {"kind": "crate-stacked", "x": 17, "y": 1, "w": 2, "h": 1},
+            {"kind": "crate", "x": 1, "y": 6, "w": 2, "h": 1},
+            {"kind": "crate-long", "x": 17, "y": 6, "w": 2, "h": 1},
+            {"kind": "ships-wheel", "x": 15, "y": 3, "w": 2, "h": 2},
+            {"kind": "ship-sail-rig", "x": 5, "y": 1, "w": 4, "h": 5},
+            {"kind": "ship-sail-rig", "x": 11, "y": 1, "w": 4, "h": 5},
+            {"kind": "barrel", "x": 4, "y": 1, "w": 1, "h": 1},
+            {"kind": "barrel", "x": 15, "y": 1, "w": 1, "h": 1},
+            {"kind": "barrel", "x": 4, "y": 6, "w": 1, "h": 1},
+            {"kind": "barrel", "x": 15, "y": 6, "w": 1, "h": 1},
+        ],
+    },
+    {
+        "id": "harbour-ship-lower-deck",
+        "name": "Ship - lower deck",
+        "kind": "ship",
+        "width": 20,
+        "height": 8,
+        "entrance": {
+            "id": "harbour-ship-lower-stairs-up",
+            "name": "Stairs to Upper Deck",
+            "x": 9,
+            "y": 0,
+            "w": 2,
+            "h": 2,
+            "exitArea": "harbour-ship-deck",
+        },
+        "spawn": {"x": 9, "y": 2},
+        "fixtures": [
+            {"kind": "crate-stacked", "x": 1, "y": 1, "w": 2, "h": 2},
+            {"kind": "crate-long", "x": 4, "y": 1, "w": 3, "h": 1},
+            {"kind": "barrel", "x": 8, "y": 2, "w": 1, "h": 1},
+            {"kind": "barrel", "x": 11, "y": 2, "w": 1, "h": 1},
+            {"kind": "crate", "x": 14, "y": 1, "w": 2, "h": 1},
+            {"kind": "crate-long", "x": 17, "y": 5, "w": 2, "h": 1},
+            {"kind": "barrel", "x": 3, "y": 6, "w": 1, "h": 1},
+            {"kind": "crate", "x": 6, "y": 5, "w": 2, "h": 1},
+        ],
+    },
 ]
 
 
@@ -174,6 +217,8 @@ def design_payload():
     settings = design_settings()
     base_grid = [row[:] for row in world["tiles"]]
     apply_tile_overrides(world["tiles"], settings["tileOverrides"])
+    rooms = copy.deepcopy(ROOMS)
+    apply_room_overrides(rooms, settings["roomOverrides"])
     return {
         "title": "Abbey Island Mystery",
         "map": {
@@ -191,6 +236,7 @@ def design_payload():
         "tileColors": COLORS,
         "tileOverrides": settings["tileOverrides"],
         "blockingOverrides": settings["blockingOverrides"],
+        "roomOverrides": settings["roomOverrides"],
         "tileOptions": [
             {"id": TILES["water"], "name": "Water", "asset": "assets/graphics/tile-water.svg"},
             {"id": TILES["sand"], "name": "Sand", "asset": "assets/graphics/tile-sand.svg"},
@@ -211,7 +257,7 @@ def design_payload():
         "caveEntrances": CAVE_ENTRANCES,
         "landmarks": [*CLOISTER_LANDMARKS, LAKE_OF_TEARS],
         "zones": DESIGN_ZONES,
-        "rooms": ROOMS,
+        "rooms": rooms,
         "notes": DESIGN_NOTES,
     }
 

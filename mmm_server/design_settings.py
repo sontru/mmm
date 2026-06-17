@@ -11,7 +11,7 @@ MAP_HEIGHT = 62
 
 def design_settings():
     """Load and validate persisted map design overrides."""
-    settings = {"tileOverrides": {}, "blockingOverrides": {}}
+    settings = {"tileOverrides": {}, "blockingOverrides": {}, "roomOverrides": {}}
     try:
         raw = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError, OSError):
@@ -27,15 +27,21 @@ def design_settings():
         for key, blocked in blocking.items():
             if _valid_blocking_override(key, blocked):
                 settings["blockingOverrides"][key] = bool(blocked)
+    rooms = raw.get("roomOverrides", {})
+    if isinstance(rooms, dict):
+        for room_id, override in rooms.items():
+            if isinstance(room_id, str) and isinstance(override, dict):
+                settings["roomOverrides"][room_id] = override
     return settings
 
 
 def save_map_overrides(overrides, blocking_overrides=None):
     """Validate and persist map tile and blocking overrides."""
+    settings = design_settings()
     if not isinstance(overrides, dict):
         raise ValueError("tileOverrides must be an object")
     if blocking_overrides is None:
-        blocking_overrides = design_settings()["blockingOverrides"]
+        blocking_overrides = settings["blockingOverrides"]
     if not isinstance(blocking_overrides, dict):
         raise ValueError("blockingOverrides must be an object")
 
@@ -54,9 +60,51 @@ def save_map_overrides(overrides, blocking_overrides=None):
     payload = {
         "tileOverrides": dict(sorted(clean_tiles.items(), key=lambda item: _sort_key(item[0]))),
         "blockingOverrides": dict(sorted(clean_blocking.items(), key=lambda item: _sort_key(item[0]))),
+        "roomOverrides": settings["roomOverrides"],
     }
     SETTINGS_PATH.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     return design_settings()
+
+
+def save_room_overrides(room_overrides):
+    """Validate and persist room design overrides."""
+    settings = design_settings()
+    if not isinstance(room_overrides, dict):
+        raise ValueError("roomOverrides must be an object")
+
+    clean_rooms = dict(settings["roomOverrides"])
+    for room_id, override in room_overrides.items():
+        if not isinstance(room_id, str):
+            raise ValueError("Invalid room override key")
+        if not isinstance(override, dict):
+            raise ValueError("Room override must be an object")
+        clean_rooms[room_id] = override
+
+    payload = {
+        "tileOverrides": settings["tileOverrides"],
+        "blockingOverrides": settings["blockingOverrides"],
+        "roomOverrides": clean_rooms,
+    }
+    SETTINGS_PATH.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return design_settings()
+
+
+def apply_room_overrides(rooms, overrides):
+    """Apply persisted room field overrides to generated room definitions."""
+    if not isinstance(overrides, dict):
+        return
+    for room in rooms:
+        room_id = room.get("id")
+        if room_id in overrides and isinstance(overrides[room_id], dict):
+            _merge_room_fields(room, overrides[room_id])
+
+
+def _merge_room_fields(room, override):
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(room.get(key), dict):
+            _merge_room_fields(room[key], value)
+        else:
+            room[key] = value
 
 
 def apply_tile_overrides(tiles, overrides):

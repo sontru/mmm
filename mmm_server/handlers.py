@@ -2,12 +2,12 @@ from http.server import SimpleHTTPRequestHandler
 import json
 from urllib.parse import parse_qs, urlparse
 
-from .admin import admin_page, admin_summary
+from .admin import admin_assets_page, admin_page, admin_rooms_page, admin_summary
 from .asset_editor import graphics_assets, read_graphics_asset, save_graphics_asset
 from .auth import clear_cookie_header, cookie_header, current_user, login_or_create_player, logout
 from .code_editor import code_files, read_code_file, save_code_file
 from .database import connect, now_seconds
-from .design_settings import save_map_overrides
+from .design_settings import save_map_overrides, save_room_overrides
 from .game_design import design_payload
 
 
@@ -46,6 +46,8 @@ class GameHandler(SimpleHTTPRequestHandler):
             "/api/admin/code-files": self.handle_admin_code_files,
             "/api/admin/code-file": self.handle_admin_code_file,
             "/admin": self.handle_admin_page,
+            "/admin/rooms": self.handle_admin_rooms_page,
+            "/admin/assets": self.handle_admin_assets_page,
         }
         handler = routes.get(self.path.split("?", 1)[0])
         if handler:
@@ -63,6 +65,7 @@ class GameHandler(SimpleHTTPRequestHandler):
             "/api/admin/map": self.handle_admin_map,
             "/api/admin/asset": self.handle_admin_asset_save,
             "/api/admin/code-file": self.handle_admin_code_file_save,
+            "/api/admin/room": self.handle_admin_room_save,
         }
         handler = routes.get(self.path.split("?", 1)[0])
         if handler:
@@ -347,6 +350,40 @@ class GameHandler(SimpleHTTPRequestHandler):
             self.send_json({"ok": False, "error": str(error)}, 400)
             return
         self.send_json({"ok": True, "file": file_data})
+
+    def handle_admin_rooms_page(self):
+        """Serve a simplified local admin room editor page."""
+        if not self.is_local_admin():
+            self.send_html("<h1>Admin dashboard is only available from this computer</h1>", 403)
+            return
+        self.send_html(admin_rooms_page())
+
+    def handle_admin_assets_page(self):
+        """Serve the local admin graphics and code editor page."""
+        if not self.is_local_admin():
+            self.send_html("<h1>Admin dashboard is only available from this computer</h1>", 403)
+            return
+        self.send_html(admin_assets_page())
+
+    def handle_admin_room_save(self):
+        """Persist a single room override from the local admin interface."""
+        if not self.is_local_admin():
+            self.send_json({"ok": False, "error": "Admin dashboard is only available from this computer"}, 403)
+            return
+        payload = self.read_json()
+        if payload is None:
+            self.send_json({"ok": False, "error": "Invalid JSON"}, 400)
+            return
+        room = payload.get("room")
+        if not isinstance(room, dict) or not isinstance(room.get("id"), str):
+            self.send_json({"ok": False, "error": "Room data is required"}, 400)
+            return
+        try:
+            settings = save_room_overrides({room["id"]: room})
+        except ValueError as error:
+            self.send_json({"ok": False, "error": str(error)}, 400)
+            return
+        self.send_json({"ok": True, "roomOverrides": settings["roomOverrides"], "design": design_payload()})
 
     # ------------------------------------------------------------------
     # Persistence helpers

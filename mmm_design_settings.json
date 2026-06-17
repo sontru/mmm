@@ -121,5 +121,201 @@
     "47,50": false,
     "48,50": false,
     "48,51": false
+  },
+  "roomOverrides": {
+    "harbour-ship-deck": {
+      "id": "harbour-ship-deck",
+      "name": "Ship - upper deck",
+      "kind": "ship",
+      "width": 20,
+      "height": 8,
+      "entrance": {
+        "id": "harbour-ship-gangway",
+        "name": "Gangway to Abbey Island",
+        "x": 9,
+        "y": 7,
+        "w": 2,
+        "h": 1,
+        "exitArea": "island",
+        "exitTile": {
+          "x": 46,
+          "y": 14
+        }
+      },
+      "entrances": [
+        {
+          "id": "harbour-ship-lower-deck",
+          "name": "Stairs to Lower Deck",
+          "x": 9,
+          "y": 1,
+          "w": 2,
+          "h": 1,
+          "exitArea": "harbour-ship-lower-deck"
+        }
+      ],
+      "spawn": {
+        "x": 9,
+        "y": 6
+      },
+      "fixtures": [
+        {
+          "kind": "crate-long",
+          "x": 1,
+          "y": 1,
+          "w": 2,
+          "h": 1
+        },
+        {
+          "kind": "crate-stacked",
+          "x": 17,
+          "y": 1,
+          "w": 2,
+          "h": 1
+        },
+        {
+          "kind": "crate",
+          "x": 1,
+          "y": 6,
+          "w": 2,
+          "h": 1
+        },
+        {
+          "kind": "crate-long",
+          "x": 17,
+          "y": 6,
+          "w": 2,
+          "h": 1
+        },
+        {
+          "kind": "ships-wheel",
+          "x": 16,
+          "y": 3,
+          "w": 2,
+          "h": 2
+        },
+        {
+          "kind": "ship-sail-rig",
+          "x": 4,
+          "y": 1,
+          "w": 4,
+          "h": 6
+        },
+        {
+          "kind": "ship-sail-rig",
+          "x": 11,
+          "y": 0,
+          "w": 5,
+          "h": 7
+        },
+        {
+          "kind": "barrel",
+          "x": 4,
+          "y": 1,
+          "w": 1,
+          "h": 1
+        },
+        {
+          "kind": "barrel",
+          "x": 15,
+          "y": 1,
+          "w": 1,
+          "h": 1
+        },
+        {
+          "kind": "barrel",
+          "x": 4,
+          "y": 6,
+          "w": 1,
+          "h": 1
+        },
+        {
+          "kind": "barrel",
+          "x": 15,
+          "y": 6,
+          "w": 1,
+          "h": 1
+        }
+      ],
+      "blockedTiles": []
+    },
+    "harbour-ship-lower-deck": {
+      "id": "harbour-ship-lower-deck",
+      "name": "Ship - lower deck",
+      "kind": "ship",
+      "width": 20,
+      "height": 8,
+      "entrance": {
+        "id": "harbour-ship-lower-stairs-up",
+        "name": "Stairs to Upper Deck",
+        "x": 9,
+        "y": 1,
+        "w": 2,
+        "h": 1,
+        "exitArea": "harbour-ship-deck"
+      },
+      "spawn": {
+        "x": 9,
+        "y": 2
+      },
+      "fixtures": [
+        {
+          "kind": "crate-stacked",
+          "x": 1,
+          "y": 1,
+          "w": 2,
+          "h": 2
+        },
+        {
+          "kind": "crate-long",
+          "x": 4,
+          "y": 1,
+          "w": 3,
+          "h": 1
+        },
+        {
+          "kind": "barrel",
+          "x": 8,
+          "y": 2,
+          "w": 1,
+          "h": 1
+        },
+        {
+          "kind": "barrel",
+          "x": 11,
+          "y": 2,
+          "w": 1,
+          "h": 1
+        },
+        {
+          "kind": "crate",
+          "x": 14,
+          "y": 1,
+          "w": 2,
+          "h": 1
+        },
+        {
+          "kind": "crate-long",
+          "x": 17,
+          "y": 5,
+          "w": 2,
+          "h": 1
+        },
+        {
+          "kind": "barrel",
+          "x": 3,
+          "y": 6,
+          "w": 1,
+          "h": 1
+        },
+        {
+          "kind": "crate",
+          "x": 6,
+          "y": 5,
+          "w": 2,
+          "h": 1
+        }
+      ],
+      "blockedTiles": []
+    }
   }
 }
