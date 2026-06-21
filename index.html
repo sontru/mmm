@@ -460,6 +460,7 @@
 
       .game-menu {
         position: fixed;
+        z-index: 3;
         left: 18px;
         right: 18px;
         top: calc(env(safe-area-inset-top, 0px) + 16px);
@@ -636,6 +637,7 @@
 
       .pad {
         position: fixed;
+        z-index: 2;
         right: 18px;
         bottom: 166px;
         display: grid;
@@ -838,7 +840,7 @@
 
         .pad {
           right: 10px;
-          bottom: 156px;
+          bottom: calc(env(safe-area-inset-bottom, 0px) + 220px);
         }
       }
     </style>
@@ -882,7 +884,7 @@
     <section class="intro" id="intro" aria-label="Game intro">
       <div class="intro-inner">
         <div class="intro-title">
-          <span class="intro-kicker">A cloistered whodunit</span>
+          <span class="intro-kicker" id="introPlayerName">Sister Player</span>
           <h1>Abbey Island Mystery</h1>
           <p>Enter the abbey, question the shadows, and follow the trail before the bell tolls again.</p>
         </div>

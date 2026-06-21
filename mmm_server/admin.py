@@ -1621,7 +1621,11 @@ def admin_rooms_page():
               <option value="placeFixture">Place Fixture</option>
               <option value="removeFixture">Remove Fixture</option>
               <option value="blockTile">Block Tile</option>
-              <option value="unblockTile">Unblock Tile</option>
+              <option value="unblockTile">Non-blocking Tile</option>
+              <option value="defaultBlocking">Restore Default</option>
+              <option value="objectPassBehind">Object Tile: Pass Behind</option>
+              <option value="objectPassFront">Object Tile: Pass In Front</option>
+              <option value="objectPassDefault">Object Tile: Restore Default</option>
             </select>
           </div>
           <div>
@@ -1632,7 +1636,8 @@ def admin_rooms_page():
               <option value="crate-stacked">Stacked Crate</option>
               <option value="barrel">Barrel</option>
               <option value="ships-wheel">Ship Wheel</option>
-              <option value="ship-sail-rig">Sail Rig</option>
+              <option value="ship-sail-rig-small">Small Sail Rig</option>
+              <option value="ship-sail-rig-large">Large Sail Rig</option>
               <option value="table">Table</option>
               <option value="porthole">Porthole</option>
             </select>
@@ -1641,6 +1646,21 @@ def admin_rooms_page():
             <div><label for="fixtureWidth">W</label><input id="fixtureWidth" type="number" min="1" value="2"></div>
             <div><label for="fixtureHeight">H</label><input id="fixtureHeight" type="number" min="1" value="1"></div>
           </div>
+          <div>
+            <label for="fixtureCollision">Object Collision</label>
+            <select id="fixtureCollision">
+              <option value="blocking">Blocking</option>
+              <option value="nonBlocking">Non-blocking</option>
+            </select>
+          </div>
+          <div>
+            <label for="fixturePassMode">Actor Layer</label>
+            <select id="fixturePassMode">
+              <option value="front">Pass in front of object</option>
+              <option value="behind">Pass behind SVG foreground</option>
+            </select>
+          </div>
+          <label class="inline"><input id="fixtureHideActor" type="checkbox">Use SVG foreground occlusion</label>
           <button type="button" id="centerRoom" class="button secondary full">Center Preview</button>
           <label class="inline"><input id="roomLabelsToggle" type="checkbox" checked>Labels</label>
         </section>
@@ -1681,6 +1701,9 @@ def admin_rooms_page():
     const fixtureKind = document.getElementById("fixtureKind");
     const fixtureWidth = document.getElementById("fixtureWidth");
     const fixtureHeight = document.getElementById("fixtureHeight");
+    const fixtureCollision = document.getElementById("fixtureCollision");
+    const fixturePassMode = document.getElementById("fixturePassMode");
+    const fixtureHideActor = document.getElementById("fixtureHideActor");
     const centerRoom = document.getElementById("centerRoom");
     const roomLabelsToggle = document.getElementById("roomLabelsToggle");
     const roomGuide = document.getElementById("roomGuide");
@@ -1693,12 +1716,15 @@ def admin_rooms_page():
     let roomDirty = false;
     let savingRoom = false;
     let showRoomLabels = true;
+    let selectedFixtureIndex = null;
     const fixtureAssets = {
       barrel: "assets/graphics/barrel.svg",
       crate: "assets/graphics/crate.svg",
       "crate-long": "assets/graphics/crate-long.svg",
       "crate-stacked": "assets/graphics/crate-stacked.svg",
       "ship-sail-rig": "assets/graphics/ship-sail-rig.svg",
+      "ship-sail-rig-small": "assets/graphics/ship-sail-rig-small.svg",
+      "ship-sail-rig-large": "assets/graphics/ship-sail-rig-large.svg",
       "ships-wheel": "assets/graphics/ships-wheel.svg",
     };
     const fixtureImages = Object.fromEntries(Object.entries(fixtureAssets).map(([kind, path]) => {
@@ -1731,6 +1757,8 @@ def admin_rooms_page():
 
     function setActiveRoom(room) {
       currentRoom = JSON.parse(JSON.stringify(room));
+      selectedFixtureIndex = null;
+      normalizeFixtures();
       roomId.value = currentRoom.id || "";
       roomName.value = currentRoom.name || "";
       roomKind.value = currentRoom.kind || "";
@@ -1743,7 +1771,7 @@ def admin_rooms_page():
       entranceY.value = currentRoom.entrance?.y ?? "";
       entranceW.value = currentRoom.entrance?.w ?? "";
       entranceH.value = currentRoom.entrance?.h ?? "";
-      normalizeBlockedTiles();
+      normalizeBlockingTiles();
       roomJson.value = JSON.stringify(currentRoom, null, 2);
       updateRoomJsonFileName();
       roomStatus.textContent = "Editing room " + currentRoom.id + ".";
@@ -1768,7 +1796,7 @@ def admin_rooms_page():
         w: Math.max(1, Number(entranceW.value) || 1),
         h: Math.max(1, Number(entranceH.value) || 1),
       };
-      normalizeBlockedTiles();
+      normalizeBlockingTiles();
       roomJson.value = JSON.stringify(currentRoom, null, 2);
       if (markDirty) markRoomDirty("Unsaved room changes.");
       renderRoomEditor();
@@ -1793,35 +1821,94 @@ def admin_rooms_page():
       rect.y = clamp(Number(rect.y) || 0, 0, Math.max(0, currentRoom.height - rect.h));
     }
 
-    function normalizeBlockedTiles() {
-      if (!currentRoom) return;
-      const blocked = new Set();
-      for (const key of currentRoom.blockedTiles || []) {
+    function normalizedTileKeys(keys) {
+      const normalized = new Set();
+      for (const key of keys || []) {
         const [x, y] = String(key).split(",", 2).map(Number);
         if (Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < currentRoom.width && y < currentRoom.height) {
-          blocked.add(x + "," + y);
+          normalized.add(x + "," + y);
         }
       }
-      currentRoom.blockedTiles = Array.from(blocked).sort((a, b) => {
+      return Array.from(normalized).sort((a, b) => {
         const [ax, ay] = a.split(",").map(Number);
         const [bx, by] = b.split(",").map(Number);
         return ay - by || ax - bx;
       });
     }
 
-    function setTileBlocked(tile, blocked) {
+    function isSailRig(kind) {
+      return kind === "ship-sail-rig" ||
+        kind === "ship-sail-rig-small" ||
+        kind === "ship-sail-rig-large";
+    }
+
+    function rigBlockingTiles(fixture) {
+      return [{
+        x: Math.min(Math.max(0, fixture.w - 1), Math.floor(fixture.w * 0.25)),
+        y: Math.max(0, fixture.h - 1),
+      }];
+    }
+
+    function normalizeFixtures() {
+      if (!currentRoom) return;
+      currentRoom.fixtures = (currentRoom.fixtures || []).map((fixture) => {
+        const normalized = {
+          ...fixture,
+          blocking: fixture.blocking ?? !isSailRig(fixture.kind),
+          passMode: fixture.passMode === "behind"
+          ? "behind"
+          : fixture.passMode === "front"
+            ? "front"
+            : isSailRig(fixture.kind) ? "behind" : "front",
+          hideActor: fixture.hideActor ?? (fixture.passMode === "behind" || isSailRig(fixture.kind)),
+          passBehindTiles: normalizedTileKeysForFixture(fixture.passBehindTiles, fixture),
+          passInFrontTiles: normalizedTileKeysForFixture(fixture.passInFrontTiles, fixture),
+        };
+        normalized.blockingTiles = Array.isArray(fixture.blockingTiles)
+          ? fixture.blockingTiles
+          : rigBlockingTiles(normalized);
+        return normalized;
+      });
+    }
+
+    function normalizedTileKeysForFixture(keys, fixture) {
+      const normalized = new Set();
+      for (const key of keys || []) {
+        const [x, y] = String(key).split(",", 2).map(Number);
+        if (Number.isInteger(x) && Number.isInteger(y) &&
+            x >= 0 && y >= 0 && x < Math.max(1, fixture.w || 1) && y < Math.max(1, fixture.h || 1)) {
+          normalized.add(x + "," + y);
+        }
+      }
+      return Array.from(normalized);
+    }
+
+    function normalizeBlockingTiles() {
+      if (!currentRoom) return;
+      currentRoom.blockedTiles = normalizedTileKeys(currentRoom.blockedTiles);
+      const blocked = new Set(currentRoom.blockedTiles);
+      currentRoom.nonBlockingTiles = normalizedTileKeys(currentRoom.nonBlockingTiles)
+        .filter((key) => !blocked.has(key));
+    }
+
+    function setTileBlocking(tile, state) {
       if (!currentRoom || !tileInRoom(tile)) return;
       const blockedTiles = new Set(currentRoom.blockedTiles || []);
+      const nonBlockingTiles = new Set(currentRoom.nonBlockingTiles || []);
       const key = tile.x + "," + tile.y;
-      if (blocked) {
+      blockedTiles.delete(key);
+      nonBlockingTiles.delete(key);
+      if (state === "blocked") {
         blockedTiles.add(key);
-      } else {
-        blockedTiles.delete(key);
+      } else if (state === "nonBlocking") {
+        nonBlockingTiles.add(key);
       }
       currentRoom.blockedTiles = Array.from(blockedTiles);
-      normalizeBlockedTiles();
+      currentRoom.nonBlockingTiles = Array.from(nonBlockingTiles);
+      normalizeBlockingTiles();
       syncRoomJson();
-      markRoomDirty((blocked ? "Blocked " : "Unblocked ") + tile.x + "," + tile.y + ".");
+      const label = state === "blocked" ? "Blocked " : state === "nonBlocking" ? "Set non-blocking " : "Restored default ";
+      markRoomDirty(label + tile.x + "," + tile.y + ".");
       renderRoomEditor();
     }
 
@@ -1854,6 +1941,7 @@ def admin_rooms_page():
         roomCtx.lineTo(x * tileSize + 0.5, height * tileSize);
         roomCtx.stroke();
       }
+
       for (let y = 0; y <= height; y += 1) {
         roomCtx.beginPath();
         roomCtx.moveTo(0, y * tileSize + 0.5);
@@ -1882,6 +1970,23 @@ def admin_rooms_page():
         roomCtx.lineTo(px + tileSize - 8, py + tileSize - 8);
         roomCtx.moveTo(px + tileSize - 8, py + 8);
         roomCtx.lineTo(px + 8, py + tileSize - 8);
+        roomCtx.stroke();
+      }
+
+      const nonBlockingTiles = new Set(currentRoom.nonBlockingTiles || []);
+      for (const key of nonBlockingTiles) {
+        const [openX, openY] = key.split(",").map(Number);
+        if (openX < 0 || openY < 0 || openX >= width || openY >= height) continue;
+        const px = openX * tileSize;
+        const py = openY * tileSize;
+        roomCtx.fillStyle = "rgba(66, 176, 104, 0.3)";
+        roomCtx.fillRect(px + 2, py + 2, tileSize - 4, tileSize - 4);
+        roomCtx.strokeStyle = "#83e0a4";
+        roomCtx.lineWidth = 2;
+        roomCtx.beginPath();
+        roomCtx.moveTo(px + 7, py + tileSize / 2);
+        roomCtx.lineTo(px + tileSize * 0.43, py + tileSize - 8);
+        roomCtx.lineTo(px + tileSize - 7, py + 7);
         roomCtx.stroke();
       }
 
@@ -1954,11 +2059,33 @@ def admin_rooms_page():
           if (fixtureImg && fixtureImg.complete && fixtureImg.naturalWidth > 0) {
             roomCtx.drawImage(fixtureImg, px, py, pw, ph);
           }
-          roomCtx.strokeStyle = "#b9c4bd";
-          roomCtx.lineWidth = 1;
+          roomCtx.strokeStyle = index === selectedFixtureIndex ? "#8fd3ff" : "#b9c4bd";
+          roomCtx.lineWidth = index === selectedFixtureIndex ? 3 : 1;
           roomCtx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
           if (showRoomLabels) {
-            drawRoomEditorLabel((fixture.kind || "Fixture") + " " + (index + 1), fx * tileSize + 5, fy * tileSize + 5, "#edf0e8", "rgba(20, 14, 10, 0.88)", "#b9c4bd");
+            const collision = fixture.blocking === false ? "non-blocking" : "blocking";
+            const layer = fixture.passMode === "behind" ? "pass behind" : "pass in front";
+            drawRoomEditorLabel((fixture.kind || "Fixture") + " · " + collision + " · " + layer, fx * tileSize + 5, fy * tileSize + 5, "#edf0e8", "rgba(20, 14, 10, 0.88)", "#b9c4bd");
+          }
+          for (const baseTile of fixture.blockingTiles || []) {
+            const baseX = fx + Number(baseTile.x || 0);
+            const baseY = fy + Number(baseTile.y || 0);
+            if (baseX < 0 || baseY < 0 || baseX >= width || baseY >= height) continue;
+            roomCtx.fillStyle = "rgba(196, 64, 64, 0.38)";
+            roomCtx.fillRect(baseX * tileSize + 3, baseY * tileSize + 3, tileSize - 6, tileSize - 6);
+            roomCtx.strokeStyle = "#ff8c8c";
+            roomCtx.lineWidth = 2;
+            roomCtx.strokeRect(baseX * tileSize + 4, baseY * tileSize + 4, tileSize - 8, tileSize - 8);
+          }
+          for (const key of fixture.passBehindTiles || []) {
+            const [localX, localY] = key.split(",").map(Number);
+            roomCtx.fillStyle = "rgba(91, 141, 230, 0.34)";
+            roomCtx.fillRect((fx + localX) * tileSize + 3, (fy + localY) * tileSize + 3, tileSize - 6, tileSize - 6);
+          }
+          for (const key of fixture.passInFrontTiles || []) {
+            const [localX, localY] = key.split(",").map(Number);
+            roomCtx.fillStyle = "rgba(226, 174, 66, 0.38)";
+            roomCtx.fillRect((fx + localX) * tileSize + 3, (fy + localY) * tileSize + 3, tileSize - 6, tileSize - 6);
           }
         }
       }
@@ -1968,6 +2095,11 @@ def admin_rooms_page():
           const [blockedX, blockedY] = key.split(",").map(Number);
           if (blockedX < 0 || blockedY < 0 || blockedX >= width || blockedY >= height) continue;
           drawRoomEditorLabel("Blocked", blockedX * tileSize + 5, blockedY * tileSize + tileSize - 21, "#ffdede", "rgba(35, 12, 12, 0.88)", "#ff8c8c");
+        }
+        for (const key of nonBlockingTiles) {
+          const [openX, openY] = key.split(",").map(Number);
+          if (openX < 0 || openY < 0 || openX >= width || openY >= height) continue;
+          drawRoomEditorLabel("Non-blocking", openX * tileSize + 5, openY * tileSize + tileSize - 21, "#ddffe8", "rgba(10, 35, 19, 0.88)", "#83e0a4");
         }
       }
     }
@@ -2027,6 +2159,59 @@ def admin_rooms_page():
       return null;
     }
 
+    function selectFixture(index) {
+      selectedFixtureIndex = Number.isInteger(index) ? index : null;
+      const fixture = selectedFixtureIndex === null ? null : currentRoom.fixtures?.[selectedFixtureIndex];
+      if (fixture) {
+        fixtureKind.value = fixture.kind || "crate";
+        fixtureWidth.value = Math.max(1, fixture.w || 1);
+        fixtureHeight.value = Math.max(1, fixture.h || 1);
+        fixtureCollision.value = fixture.blocking === false ? "nonBlocking" : "blocking";
+        fixturePassMode.value = fixture.passMode === "behind" ? "behind" : "front";
+        fixtureHideActor.checked = fixture.hideActor === true;
+        roomStatus.textContent = "Selected " + fixture.kind + ".";
+      }
+      renderRoomEditor();
+    }
+
+    function setSelectedFixtureTileLayer(tile, layer) {
+      const fixture = selectedFixtureIndex === null ? null : currentRoom.fixtures?.[selectedFixtureIndex];
+      if (!fixture || !rectContainsTile(fixture, tile)) {
+        roomStatus.textContent = "Select an object, then paint tiles inside it.";
+        return;
+      }
+      const key = (tile.x - fixture.x) + "," + (tile.y - fixture.y);
+      const behind = new Set(fixture.passBehindTiles || []);
+      const front = new Set(fixture.passInFrontTiles || []);
+      behind.delete(key);
+      front.delete(key);
+      if (layer === "behind") behind.add(key);
+      if (layer === "front") front.add(key);
+      fixture.passBehindTiles = Array.from(behind);
+      fixture.passInFrontTiles = Array.from(front);
+      syncRoomJson();
+      markRoomDirty("Updated object tile layer at " + tile.x + "," + tile.y + ".");
+      renderRoomEditor();
+    }
+
+    function updateSelectedFixture() {
+      if (selectedFixtureIndex === null || !currentRoom?.fixtures?.[selectedFixtureIndex]) {
+        return;
+      }
+      const fixture = currentRoom.fixtures[selectedFixtureIndex];
+      fixture.kind = fixtureKind.value;
+      fixture.w = Math.max(1, Number(fixtureWidth.value) || 1);
+      fixture.h = Math.max(1, Number(fixtureHeight.value) || 1);
+      fixture.blocking = fixtureCollision.value !== "nonBlocking";
+      fixture.passMode = fixturePassMode.value === "behind" ? "behind" : "front";
+      fixture.hideActor = fixtureHideActor.checked;
+      fixture.blockingTiles = isSailRig(fixture.kind) ? rigBlockingTiles(fixture) : [];
+      clampRectToRoom(fixture);
+      syncRoomJson();
+      markRoomDirty("Updated " + fixture.kind + " object properties.");
+      renderRoomEditor();
+    }
+
     function rectContainsTile(rect, tile) {
       if (!rect || !tileInRoom(tile)) return false;
       const w = Math.max(1, rect.w || 1);
@@ -2067,12 +2252,8 @@ def admin_rooms_page():
       } else if (roomDrag.type === "spawn") {
         currentRoom.spawn = { x: tile.x, y: tile.y };
         roomStatus.textContent = "Moved spawn to " + tile.x + "," + tile.y + ".";
-      } else if (roomDrag.type === "blockPaint") {
-        setTileBlocked(tile, roomDrag.blocked);
-        roomStatus.textContent = (roomDrag.blocked ? "Blocked " : "Unblocked ") + tile.x + "," + tile.y + ".";
-        return;
       }
-      normalizeBlockedTiles();
+      normalizeBlockingTiles();
       syncRoomFormFromCurrent();
       renderRoomEditor();
     }
@@ -2086,9 +2267,16 @@ def admin_rooms_page():
       roomCanvas.classList.add("dragging");
       const tool = roomTool.value;
 
-      if (tool === "blockTile" || tool === "unblockTile") {
-        roomDrag = { type: "blockPaint", blocked: tool === "blockTile" };
-        moveDragTarget(tile);
+      if (tool === "blockTile" || tool === "unblockTile" || tool === "defaultBlocking") {
+        const state = tool === "blockTile" ? "blocked" : tool === "unblockTile" ? "nonBlocking" : "default";
+        roomDrag = { type: "blockingPaint", state };
+        setTileBlocking(tile, state);
+        return;
+      }
+      if (tool === "objectPassBehind" || tool === "objectPassFront" || tool === "objectPassDefault") {
+        const layer = tool === "objectPassBehind" ? "behind" : tool === "objectPassFront" ? "front" : "default";
+        roomDrag = { type: "objectLayerPaint", layer };
+        setSelectedFixtureTileLayer(tile, layer);
         return;
       }
       if (tool === "moveSpawn") {
@@ -2108,6 +2296,7 @@ def admin_rooms_page():
       if (tool === "selectMove") {
         const hitFixture = fixtureAtTile(tile);
         if (hitFixture) {
+          selectFixture(hitFixture.index);
           roomDrag = {
             type: "fixture",
             index: hitFixture.index,
@@ -2135,6 +2324,14 @@ def admin_rooms_page():
       updateRoomCoordinates(event);
       if (!roomEditMode || !roomDrag || !currentRoom) return;
       event.preventDefault();
+      if (roomDrag.type === "blockingPaint") {
+        setTileBlocking(getRoomTileFromEvent(event), roomDrag.state);
+        return;
+      }
+      if (roomDrag.type === "objectLayerPaint") {
+        setSelectedFixtureTileLayer(getRoomTileFromEvent(event), roomDrag.layer);
+        return;
+      }
       moveDragTarget(getRoomTileFromEvent(event));
     }
 
@@ -2167,9 +2364,25 @@ def admin_rooms_page():
         const kind = fixtureKind.value;
         const width = Math.max(1, Number(fixtureWidth.value) || 1);
         const height = Math.max(1, Number(fixtureHeight.value) || 1);
-        const fixture = { kind, x: tile.x, y: tile.y, w: kind === "porthole" ? 1 : width, h: kind === "porthole" ? 1 : height };
+        const fixture = {
+          kind,
+          x: tile.x,
+          y: tile.y,
+          w: kind === "porthole" ? 1 : width,
+          h: kind === "porthole" ? 1 : height,
+          blocking: fixtureCollision.value !== "nonBlocking",
+          passMode: fixturePassMode.value === "behind" ? "behind" : "front",
+          hideActor: fixtureHideActor.checked,
+        };
+        if (isSailRig(kind)) {
+          fixture.blocking = false;
+          fixture.passMode = "behind";
+          fixture.hideActor = true;
+          fixture.blockingTiles = rigBlockingTiles(fixture);
+        }
         currentRoom.fixtures = currentRoom.fixtures || [];
         currentRoom.fixtures.push(fixture);
+        selectFixture(currentRoom.fixtures.length - 1);
         roomStatus.textContent = "Added " + kind + " at " + tile.x + "," + tile.y + ".";
       } else if (roomTool.value === "removeFixture") {
         const before = (currentRoom.fixtures || []).length;
@@ -2177,14 +2390,25 @@ def admin_rooms_page():
           return !(tile.x >= fixture.x && tile.y >= fixture.y && tile.x < fixture.x + fixture.w && tile.y < fixture.y + fixture.h);
         });
         const removed = before - currentRoom.fixtures.length;
+        if (removed) selectedFixtureIndex = null;
         roomStatus.textContent = removed ? "Removed " + removed + " fixture(s)." : "No fixture found at " + tile.x + "," + tile.y + ".";
       } else if (roomTool.value === "blockTile") {
-        setTileBlocked(tile, true);
-        roomStatus.textContent = "Blocked " + tile.x + "," + tile.y + ".";
+        setTileBlocking(tile, "blocked");
         return;
       } else if (roomTool.value === "unblockTile") {
-        setTileBlocked(tile, false);
-        roomStatus.textContent = "Unblocked " + tile.x + "," + tile.y + ".";
+        setTileBlocking(tile, "nonBlocking");
+        return;
+      } else if (roomTool.value === "defaultBlocking") {
+        setTileBlocking(tile, "default");
+        return;
+      } else if (roomTool.value === "objectPassBehind") {
+        setSelectedFixtureTileLayer(tile, "behind");
+        return;
+      } else if (roomTool.value === "objectPassFront") {
+        setSelectedFixtureTileLayer(tile, "front");
+        return;
+      } else if (roomTool.value === "objectPassDefault") {
+        setSelectedFixtureTileLayer(tile, "default");
         return;
       }
       syncFormToRoom();
@@ -2206,7 +2430,15 @@ def admin_rooms_page():
       } else if (roomTool.value === "blockTile") {
         roomGuide.textContent = "Click or drag across tiles to block movement.";
       } else if (roomTool.value === "unblockTile") {
-        roomGuide.textContent = "Click or drag across tiles to unblock movement.";
+        roomGuide.textContent = "Click or drag across tiles to force them non-blocking, including fixture and wall tiles.";
+      } else if (roomTool.value === "defaultBlocking") {
+        roomGuide.textContent = "Click or drag across tiles to remove the override and restore normal room blocking.";
+      } else if (roomTool.value === "objectPassBehind") {
+        roomGuide.textContent = "Select an object with Drag/Move, then paint its tiles blue to render over actors.";
+      } else if (roomTool.value === "objectPassFront") {
+        roomGuide.textContent = "Select an object with Drag/Move, then paint its tiles amber to render below actors.";
+      } else if (roomTool.value === "objectPassDefault") {
+        roomGuide.textContent = "Paint selected object tiles to restore the object's default actor layer.";
       }
     }
 
@@ -2223,7 +2455,8 @@ def admin_rooms_page():
           return;
         }
         currentRoom = parsed;
-        normalizeBlockedTiles();
+        normalizeFixtures();
+        normalizeBlockingTiles();
         syncRoomFormFromCurrent();
         updateRoomJsonFileName();
         roomStatus.textContent = "Room JSON parsed.";
@@ -2303,6 +2536,9 @@ def admin_rooms_page():
       fixtureKind.disabled = !roomEditMode || savingRoom;
       fixtureWidth.disabled = !roomEditMode || savingRoom;
       fixtureHeight.disabled = !roomEditMode || savingRoom;
+      fixtureCollision.disabled = !roomEditMode || savingRoom;
+      fixturePassMode.disabled = !roomEditMode || savingRoom;
+      fixtureHideActor.disabled = !roomEditMode || savingRoom;
       centerRoom.disabled = savingRoom;
       roomLabelsToggle.disabled = savingRoom;
       const formDisabled = !roomEditMode || savingRoom;
@@ -2335,9 +2571,28 @@ def admin_rooms_page():
     entranceY.addEventListener("input", syncFormToRoom);
     entranceW.addEventListener("input", syncFormToRoom);
     entranceH.addEventListener("input", syncFormToRoom);
-    fixtureKind.addEventListener("change", updateRoomGuide);
-    fixtureWidth.addEventListener("input", updateRoomGuide);
-    fixtureHeight.addEventListener("input", updateRoomGuide);
+    fixtureKind.addEventListener("change", () => {
+      if (fixtureKind.value === "ship-sail-rig-small") {
+        fixtureWidth.value = 3;
+        fixtureHeight.value = 4;
+        fixtureCollision.value = "nonBlocking";
+        fixturePassMode.value = "behind";
+        fixtureHideActor.checked = true;
+      } else if (fixtureKind.value === "ship-sail-rig-large") {
+        fixtureWidth.value = 4;
+        fixtureHeight.value = 5;
+        fixtureCollision.value = "nonBlocking";
+        fixturePassMode.value = "behind";
+        fixtureHideActor.checked = true;
+      }
+      updateRoomGuide();
+      updateSelectedFixture();
+    });
+    fixtureWidth.addEventListener("input", updateSelectedFixture);
+    fixtureHeight.addEventListener("input", updateSelectedFixture);
+    fixtureCollision.addEventListener("change", updateSelectedFixture);
+    fixturePassMode.addEventListener("change", updateSelectedFixture);
+    fixtureHideActor.addEventListener("change", updateSelectedFixture);
     roomLabelsToggle.addEventListener("change", () => {
       showRoomLabels = roomLabelsToggle.checked;
       renderRoomEditor();

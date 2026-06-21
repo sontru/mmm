@@ -1281,8 +1281,6 @@ class Player:
         x = self.rect.x - camera.x
         y = self.rect.y - camera.y
         bob = math.sin(self.step_timer) * 2 if self.step_timer else 0
-        ear_sway = math.sin(self.step_timer) * 2 if self.step_timer else 0
-        leg_step = math.sin(self.step_timer) * 2 if self.step_timer else 0
 
         shadow_rect = pygame.Rect(x - 5, y + self.rect.height - 1, self.rect.width + 10, 10)
         pygame.draw.ellipse(surface, (29, 41, 45), shadow_rect)
@@ -1291,22 +1289,12 @@ class Player:
         head_center = (x + self.rect.width // 2, y + bob + 11)
         pygame.draw.rect(surface, (18, 19, 24), body, border_radius=7)
         pygame.draw.rect(surface, (48, 48, 58), body.inflate(-8, -3), border_radius=4)
-        pygame.draw.line(surface, (11, 12, 16), (head_center[0] - 7 + leg_step, y + bob + 35), (head_center[0] - 8 + leg_step, y + bob + 48), 3)
-        pygame.draw.line(surface, (11, 12, 16), (head_center[0] + 7 - leg_step, y + bob + 35), (head_center[0] + 8 - leg_step, y + bob + 48), 3)
-        pygame.draw.ellipse(surface, (8, 9, 13), (head_center[0] - 14 + leg_step, y + bob + 48, 10, 4))
-        pygame.draw.ellipse(surface, (8, 9, 13), (head_center[0] + 4 - leg_step, y + bob + 48, 10, 4))
-        pygame.draw.line(surface, (243, 240, 232), (head_center[0] - 12 + leg_step, y + bob + 49), (head_center[0] - 6 + leg_step, y + bob + 49), 1)
-        pygame.draw.line(surface, (243, 240, 232), (head_center[0] + 6 - leg_step, y + bob + 49), (head_center[0] + 12 - leg_step, y + bob + 49), 1)
-        pygame.draw.polygon(
-            surface,
-            (5, 7, 11),
-            ((head_center[0] - 9 + ear_sway, head_center[1] - 12), (head_center[0] - 17 + ear_sway * 0.35, head_center[1] - 28), (head_center[0] - 2 + ear_sway, head_center[1] - 18)),
-        )
-        pygame.draw.polygon(
-            surface,
-            (5, 7, 11),
-            ((head_center[0] + 9 - ear_sway, head_center[1] - 12), (head_center[0] + 17 - ear_sway * 0.35, head_center[1] - 28), (head_center[0] + 2 - ear_sway, head_center[1] - 18)),
-        )
+        pygame.draw.line(surface, (11, 12, 16), (head_center[0] - 7, y + bob + 35), (head_center[0] - 8, y + bob + 48), 3)
+        pygame.draw.line(surface, (11, 12, 16), (head_center[0] + 7, y + bob + 35), (head_center[0] + 8, y + bob + 48), 3)
+        pygame.draw.ellipse(surface, (8, 9, 13), (head_center[0] - 14, y + bob + 48, 10, 4))
+        pygame.draw.ellipse(surface, (8, 9, 13), (head_center[0] + 4, y + bob + 48, 10, 4))
+        pygame.draw.line(surface, (243, 240, 232), (head_center[0] - 12, y + bob + 49), (head_center[0] - 6, y + bob + 49), 1)
+        pygame.draw.line(surface, (243, 240, 232), (head_center[0] + 6, y + bob + 49), (head_center[0] + 12, y + bob + 49), 1)
         pygame.draw.ellipse(surface, (17, 25, 35), (head_center[0] - 17, head_center[1] - 9, 34, 38))
         pygame.draw.ellipse(surface, (242, 239, 231), (head_center[0] - 12, head_center[1] - 13, 24, 21))
         pygame.draw.ellipse(surface, (216, 204, 209), (head_center[0] - 10, head_center[1] - 9, 20, 18))

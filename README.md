@@ -16,7 +16,8 @@ python3 main.py
 
 Then open the URL printed by the server, usually `http://localhost:8080`. Other people on the same network can use `http://<your-computer-ip>:8080`.
 
-The local admin dashboard is available only on the host computer:
+The admin page has a separate hardwired `api_user` login. It does not create
+or use a game player account:
 
 ```text
 http://localhost:8080/admin

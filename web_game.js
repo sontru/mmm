@@ -14,6 +14,7 @@ const examineItemButton = document.getElementById("examineItem");
 const consumeItemButton = document.getElementById("consumeItem");
 const inventoryCrossButton = document.getElementById("inventoryCross");
 const intro = document.getElementById("intro");
+const introPlayerName = document.getElementById("introPlayerName");
 const introStatus = document.getElementById("introStatus");
 const startGameButton = document.getElementById("startGame");
 const settingsGameButton = document.getElementById("settingsGame");
@@ -50,6 +51,9 @@ const TILE_SIZE = 48;
 const PLAYER_SPRITE_HEIGHT = 84;
 const MAP_WIDTH = 90;
 const MAP_HEIGHT = 62;
+const MAP_CACHE_CHUNK_SIZE = 960;
+const MOBILE_MAP_CACHE_CHUNKS = 8;
+const DESKTOP_MAP_CACHE_CHUNKS = 12;
 const START_TILE = { x: 46, y: 14 };
 let pendingPrologueStart = { loadSave: false };
 let prologuePageIndex = 0;
@@ -311,8 +315,43 @@ const SHIP_OBJECT_PADDING = {
   "crate-long": 3,
   "crate-stacked": 2,
   "ship-sail-rig": 0,
+  "ship-sail-rig-small": 0,
+  "ship-sail-rig-large": 0,
   "ships-wheel": 4,
 };
+function isShipSailRig(kind) {
+  return kind === "ship-sail-rig" ||
+    kind === "ship-sail-rig-small" ||
+    kind === "ship-sail-rig-large";
+}
+
+function defaultRigBlockingTiles(fixture) {
+  if (!isShipSailRig(fixture.kind)) {
+    return [];
+  }
+  return [{
+    x: Math.min(Math.max(0, fixture.w - 1), Math.floor(fixture.w * 0.25)),
+    y: Math.max(0, fixture.h - 1),
+  }];
+}
+
+function actorCollisionRect(actor) {
+  return {
+    x: actor.rect.x + 4,
+    y: actor.rect.y + actor.rect.h * 0.48,
+    w: Math.max(1, actor.rect.w - 8),
+    h: Math.max(1, actor.rect.h * 0.52),
+  };
+}
+
+function actorRectsOverlap(leftActor, rightActor) {
+  const left = actorCollisionRect(leftActor);
+  const right = actorCollisionRect(rightActor);
+  return left.x < right.x + right.w &&
+    left.x + left.w > right.x &&
+    left.y < right.y + right.h &&
+    left.y + left.h > right.y;
+}
 
 const GRAPHICS = {
   tiles: {
@@ -345,7 +384,12 @@ const GRAPHICS = {
     "crate-long": "assets/graphics/crate-long.svg",
     "crate-stacked": "assets/graphics/crate-stacked.svg",
     "ship-sail-rig": "assets/graphics/ship-sail-rig.svg",
+    "ship-sail-rig-small": "assets/graphics/ship-sail-rig-small.svg",
+    "ship-sail-rig-large": "assets/graphics/ship-sail-rig-large.svg",
     "ships-wheel": "assets/graphics/ships-wheel.svg",
+  },
+  npcs: {
+    captainAdrianVoss: "assets/graphics/captain-adrian-voss-npc-sprite.svg",
   },
   player: "assets/graphics/player-gothic.svg",
 };
@@ -437,6 +481,7 @@ function syncLoginState() {
   database.activePlayer = loggedInName;
   saveGameDatabase(database);
 
+  introPlayerName.textContent = sisterPlayerName();
   progressGameButton.disabled = !loggedInName;
   progressGameButton.setAttribute("aria-disabled", String(!loggedInName));
   startGameButton.disabled = !loggedInName;
@@ -606,6 +651,7 @@ function color([r, g, b], alpha = 1) {
 
 function image(path) {
   const img = new Image();
+  img.decoding = "async";
   img.src = path;
   return img;
 }
@@ -620,6 +666,9 @@ function loadImages(graphics) {
     buildings: graphics.buildings.map(image),
     objects: Object.fromEntries(
       Object.entries(graphics.objects || {}).map(([kind, path]) => [kind, image(path)])
+    ),
+    npcs: Object.fromEntries(
+      Object.entries(graphics.npcs || {}).map(([name, path]) => [name, image(path)])
     ),
     player: image(graphics.player),
   };
@@ -683,17 +732,38 @@ function graphicsList() {
     ...images.rocks,
     ...images.buildings,
     ...Object.values(images.objects || {}),
+    ...Object.values(images.npcs || {}),
     images.player,
   ];
 }
 
+let designSignature = "";
+let designRequestInFlight = false;
+
+function stableDesignSignature(design) {
+  return JSON.stringify({
+    grid: design.grid,
+    blockingOverrides: design.blockingOverrides || {},
+    rooms: design.rooms || [],
+  });
+}
+
 async function loadDesignMap() {
+  if (designRequestInFlight || document.hidden) {
+    return;
+  }
+  designRequestInFlight = true;
   try {
     const response = await fetch("/api/design", { credentials: "same-origin" });
     const data = await response.json();
     if (!data.ok || !Array.isArray(data.design?.grid)) {
       return;
     }
+    const nextSignature = stableDesignSignature(data.design);
+    if (nextSignature === designSignature) {
+      return;
+    }
+    designSignature = nextSignature;
     world.applyDesignGrid(data.design.grid, data.design.blockingOverrides || {});
     for (const room of data.design.rooms || []) {
       const shipMap = shipRooms.get(room.id);
@@ -711,6 +781,8 @@ async function loadDesignMap() {
     }
   } catch (error) {
     console.warn("Could not load map edits.", error);
+  } finally {
+    designRequestInFlight = false;
   }
 }
 
@@ -729,10 +801,7 @@ class World {
     this.tiles = this.generateIsland();
     this.buildings = this.placeBuildings();
     this.patchSouthBeach(this.tiles);
-    this.cacheCanvas = document.createElement("canvas");
-    this.cacheCanvas.width = MAP_WIDTH * TILE_SIZE;
-    this.cacheCanvas.height = MAP_HEIGHT * TILE_SIZE;
-    this.cacheReady = false;
+    this.cacheChunks = new Map();
     this.blockingOverrides = new Map();
     this.rebuildLandPositions();
   }
@@ -782,7 +851,7 @@ class World {
   }
 
   invalidateCache() {
-    this.cacheReady = false;
+    this.cacheChunks.clear();
   }
 
   generateIsland() {
@@ -1553,25 +1622,40 @@ class World {
   }
 
   draw(camera) {
-    if (!this.cacheReady) {
-      this.buildCache();
-    }
+    const worldWidth = MAP_WIDTH * TILE_SIZE;
+    const worldHeight = MAP_HEIGHT * TILE_SIZE;
+    const sourceX = Math.max(0, Math.floor(camera.x));
+    const sourceY = Math.max(0, Math.floor(camera.y));
+    const sourceRight = Math.min(worldWidth, Math.ceil(camera.x + screenWidth));
+    const sourceBottom = Math.min(worldHeight, Math.ceil(camera.y + screenHeight));
+    const firstChunkX = Math.floor(sourceX / MAP_CACHE_CHUNK_SIZE);
+    const lastChunkX = Math.floor(Math.max(sourceX, sourceRight - 1) / MAP_CACHE_CHUNK_SIZE);
+    const firstChunkY = Math.floor(sourceY / MAP_CACHE_CHUNK_SIZE);
+    const lastChunkY = Math.floor(Math.max(sourceY, sourceBottom - 1) / MAP_CACHE_CHUNK_SIZE);
 
-    const sourceX = Math.floor(camera.x);
-    const sourceY = Math.floor(camera.y);
-    const sourceW = Math.min(screenWidth, this.cacheCanvas.width - sourceX);
-    const sourceH = Math.min(screenHeight, this.cacheCanvas.height - sourceY);
-    ctx.drawImage(
-      this.cacheCanvas,
-      sourceX,
-      sourceY,
-      sourceW,
-      sourceH,
-      0,
-      0,
-      sourceW,
-      sourceH
-    );
+    for (let chunkY = firstChunkY; chunkY <= lastChunkY; chunkY += 1) {
+      for (let chunkX = firstChunkX; chunkX <= lastChunkX; chunkX += 1) {
+        const chunk = this.cacheChunk(chunkX, chunkY);
+        const left = Math.max(sourceX, chunk.x);
+        const top = Math.max(sourceY, chunk.y);
+        const right = Math.min(sourceRight, chunk.x + chunk.canvas.width);
+        const bottom = Math.min(sourceBottom, chunk.y + chunk.canvas.height);
+        if (right <= left || bottom <= top) {
+          continue;
+        }
+        ctx.drawImage(
+          chunk.canvas,
+          left - chunk.x,
+          top - chunk.y,
+          right - left,
+          bottom - top,
+          left - camera.x,
+          top - camera.y,
+          right - left,
+          bottom - top
+        );
+      }
+    }
   }
 
   drawForeground(camera) {
@@ -1611,23 +1695,58 @@ class World {
     });
   }
 
-  buildCache() {
-    const cacheCtx = this.cacheCanvas.getContext("2d", { alpha: false });
+  cacheChunk(chunkX, chunkY) {
+    const key = `${chunkX},${chunkY}`;
+    const cached = this.cacheChunks.get(key);
+    if (cached) {
+      this.cacheChunks.delete(key);
+      this.cacheChunks.set(key, cached);
+      return cached;
+    }
+
+    const x = chunkX * MAP_CACHE_CHUNK_SIZE;
+    const y = chunkY * MAP_CACHE_CHUNK_SIZE;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.min(MAP_CACHE_CHUNK_SIZE, MAP_WIDTH * TILE_SIZE - x);
+    canvas.height = Math.min(MAP_CACHE_CHUNK_SIZE, MAP_HEIGHT * TILE_SIZE - y);
+    const cacheCtx = canvas.getContext("2d", { alpha: false });
     const previousCtx = renderCtx;
     renderCtx = cacheCtx;
     cacheCtx.imageSmoothingEnabled = false;
+    cacheCtx.save();
+    cacheCtx.translate(-x, -y);
 
-    this.drawLowerLayer();
+    this.drawLowerLayer(x, y, canvas.width, canvas.height);
     this.drawCaveEntrances();
     this.drawBuildings();
 
+    cacheCtx.restore();
     renderCtx = previousCtx;
-    this.cacheReady = true;
+    const chunk = { canvas, x, y };
+    this.cacheChunks.set(key, chunk);
+    const mobilePointer = (
+      window.matchMedia?.("(pointer: coarse)")?.matches ||
+      navigator.maxTouchPoints > 0 ||
+      window.innerWidth <= 560
+    );
+    const cacheLimit = mobilePointer ? MOBILE_MAP_CACHE_CHUNKS : DESKTOP_MAP_CACHE_CHUNKS;
+    while (this.cacheChunks.size > cacheLimit) {
+      const oldestKey = this.cacheChunks.keys().next().value;
+      const oldestChunk = this.cacheChunks.get(oldestKey);
+      this.cacheChunks.delete(oldestKey);
+      oldestChunk.canvas.width = 0;
+      oldestChunk.canvas.height = 0;
+    }
+    return chunk;
   }
 
-  drawLowerLayer() {
-    for (let tileY = 0; tileY < MAP_HEIGHT; tileY += 1) {
-      for (let tileX = 0; tileX < MAP_WIDTH; tileX += 1) {
+  drawLowerLayer(x = 0, y = 0, width = MAP_WIDTH * TILE_SIZE, height = MAP_HEIGHT * TILE_SIZE) {
+    const firstTileX = Math.max(0, Math.floor(x / TILE_SIZE) - 1);
+    const lastTileX = Math.min(MAP_WIDTH - 1, Math.ceil((x + width) / TILE_SIZE));
+    const firstTileY = Math.max(0, Math.floor(y / TILE_SIZE) - 1);
+    const lastTileY = Math.min(MAP_HEIGHT - 1, Math.ceil((y + height) / TILE_SIZE));
+    for (let tileY = firstTileY; tileY <= lastTileY; tileY += 1) {
+      for (let tileX = firstTileX; tileX <= lastTileX; tileX += 1) {
         this.drawTile(tileX, tileY, tileX * TILE_SIZE, tileY * TILE_SIZE);
       }
     }
@@ -2519,9 +2638,9 @@ class ShipRoom {
       height: roomDefaults.height,
       entrance: roomDefaults.id === AREA_SHIP_ROOM
         ? { x: 9, y: 7, w: 2, h: 1, exitArea: AREA_ISLAND }
-        : { x: 9, y: 0, w: 2, h: 2, exitArea: AREA_SHIP_ROOM },
+        : { x: 9, y: 3, w: 1, h: 2, entryAxis: "vertical", exitArea: AREA_SHIP_ROOM },
       entrances: roomDefaults.id === AREA_SHIP_ROOM
-        ? [{ id: "harbour-ship-lower-deck", name: "Stairs to Lower Deck", x: 9, y: 0, w: 2, h: 2, exitArea: AREA_SHIP_LOWER_ROOM }]
+        ? [{ id: "harbour-ship-lower-deck", name: "Stairs to Lower Deck", x: 9, y: 3, w: 1, h: 2, entryAxis: "vertical", exitArea: AREA_SHIP_LOWER_ROOM }]
         : [],
       spawn: roomDefaults.entranceTile,
       blockedTiles: [],
@@ -2531,8 +2650,8 @@ class ShipRoom {
           { kind: "crate", x: 1, y: 6, w: 2, h: 1 },
           { kind: "crate-long", x: 17, y: 6, w: 2, h: 1 },
           { kind: "ships-wheel", x: 15, y: 3, w: 2, h: 2 },
-          { kind: "ship-sail-rig", x: 5, y: 1, w: 4, h: 5 },
-          { kind: "ship-sail-rig", x: 11, y: 1, w: 4, h: 5 },
+          { kind: "ship-sail-rig-large", x: 5, y: 1, w: 4, h: 5, blocking: false, blockingTiles: [{ x: 1, y: 4 }], passMode: "behind", hideActor: true },
+          { kind: "ship-sail-rig-large", x: 11, y: 1, w: 4, h: 5, blocking: false, blockingTiles: [{ x: 1, y: 4 }], passMode: "behind", hideActor: true },
           { kind: "barrel", x: 4, y: 1, w: 1, h: 1 },
           { kind: "barrel", x: 15, y: 1, w: 1, h: 1 },
           { kind: "barrel", x: 4, y: 6, w: 1, h: 1 },
@@ -2566,6 +2685,7 @@ class ShipRoom {
       id: mainEntrance.id || "",
       name: mainEntrance.name || "Entrance",
       exitArea: mainEntrance.exitArea || "",
+      entryAxis: mainEntrance.entryAxis || "",
       ...this.normalizedRect(mainEntrance),
     };
     this.roomEntrances = (room.entrances || [])
@@ -2574,16 +2694,32 @@ class ShipRoom {
         id: entrance.id || "",
         name: entrance.name || "Entrance",
         exitArea: entrance.exitArea || "",
+        entryAxis: entrance.entryAxis || "",
         ...this.normalizedRect(entrance),
       }));
     this.spawn = this.normalizedPoint(room.spawn || defaults.entranceTile || { x: this.entrance.x, y: Math.max(0, this.entrance.y - 1) });
     this.entranceTile = { ...this.spawn };
     this.fixtures = (room.fixtures || [])
       .filter((fixture) => fixture && typeof fixture === "object")
-      .map((fixture) => ({
-        kind: fixture.kind || "crate",
-        ...this.normalizedRect(fixture),
-      }));
+      .map((fixture) => {
+        const normalized = {
+          kind: fixture.kind || "crate",
+          blocking: fixture.blocking ?? !isShipSailRig(fixture.kind),
+          passMode: fixture.passMode === "behind"
+          ? "behind"
+          : fixture.passMode === "front"
+            ? "front"
+            : isShipSailRig(fixture.kind) ? "behind" : "front",
+          hideActor: fixture.hideActor ?? (fixture.passMode === "behind" || isShipSailRig(fixture.kind)),
+          passBehindTiles: Array.isArray(fixture.passBehindTiles) ? fixture.passBehindTiles : [],
+          passInFrontTiles: Array.isArray(fixture.passInFrontTiles) ? fixture.passInFrontTiles : [],
+          ...this.normalizedRect(fixture),
+        };
+        normalized.blockingTiles = Array.isArray(fixture.blockingTiles)
+          ? fixture.blockingTiles
+          : defaultRigBlockingTiles(normalized);
+        return normalized;
+      });
     this.blockedTiles = new Set();
     for (const key of room.blockedTiles || []) {
       const [x, y] = String(key).split(",", 2).map(Number);
@@ -2591,7 +2727,19 @@ class ShipRoom {
         this.blockedTiles.add(x + "," + y);
       }
     }
+    this.nonBlockingTiles = new Set();
+    for (const key of room.nonBlockingTiles || []) {
+      const [x, y] = String(key).split(",", 2).map(Number);
+      if (Number.isInteger(x) && Number.isInteger(y) && this.inBounds(x, y)) {
+        this.nonBlockingTiles.add(x + "," + y);
+      }
+    }
     this.fixtureBlockedTiles = this.fixtureTileSet();
+    this.invalidateCache();
+  }
+
+  invalidateCache() {
+    this.layerCache = null;
   }
 
   normalizedRect(rect) {
@@ -2615,6 +2763,16 @@ class ShipRoom {
   fixtureTileSet() {
     const tiles = new Set();
     for (const fixture of this.fixtures || []) {
+      for (const localTile of fixture.blockingTiles || []) {
+        const tileX = fixture.x + Number(localTile.x || 0);
+        const tileY = fixture.y + Number(localTile.y || 0);
+        if (this.inBounds(tileX, tileY)) {
+          tiles.add(tileX + "," + tileY);
+        }
+      }
+      if (fixture.blocking === false) {
+        continue;
+      }
       for (let y = fixture.y; y < fixture.y + fixture.h; y += 1) {
         for (let x = fixture.x; x < fixture.x + fixture.w; x += 1) {
           if (this.inBounds(x, y)) tiles.add(x + "," + y);
@@ -2640,6 +2798,13 @@ class ShipRoom {
     if (!this.inBounds(tileX, tileY)) {
       return true;
     }
+    const key = tileX + "," + tileY;
+    if (this.nonBlockingTiles.has(key)) {
+      return false;
+    }
+    if (this.blockedTiles.has(key)) {
+      return true;
+    }
     if (this.isEntranceTile(tileX, tileY) || this.isRoomEntranceTile(tileX, tileY)) {
       return false;
     }
@@ -2647,8 +2812,7 @@ class ShipRoom {
       tileY === 0 ||
       tileX === this.width - 1 ||
       tileY === this.height - 1 ||
-      this.blockedTiles.has(tileX + "," + tileY) ||
-      this.fixtureBlockedTiles.has(tileX + "," + tileY);
+      this.fixtureBlockedTiles.has(key);
   }
 
   isEntranceTile(tileX, tileY) {
@@ -2690,8 +2854,30 @@ class ShipRoom {
   }
 
   draw(camera) {
-    const x = -camera.x;
-    const y = -camera.y;
+    const layers = this.cachedLayers();
+    renderCtx.drawImage(layers.background, -camera.x, -camera.y);
+  }
+
+  cachedLayers() {
+    if (this.layerCache) {
+      return this.layerCache;
+    }
+
+    const background = makeBitmapLayer(this.pixelWidth, this.pixelHeight);
+    const foreground = makeBitmapLayer(this.pixelWidth, this.pixelHeight);
+    const previousCtx = renderCtx;
+    renderCtx = background.getContext("2d");
+    renderCtx.imageSmoothingEnabled = false;
+    this.drawStaticLayer(0, 0);
+    renderCtx = foreground.getContext("2d");
+    renderCtx.imageSmoothingEnabled = false;
+    this.drawFixtures(0, 0, "behind");
+    renderCtx = previousCtx;
+    this.layerCache = { background, foreground };
+    return this.layerCache;
+  }
+
+  drawStaticLayer(x, y) {
     fill("#10141b");
     renderCtx.fillRect(x, y, this.pixelWidth, this.pixelHeight);
     this.drawPlanks(x, y);
@@ -2702,7 +2888,7 @@ class ShipRoom {
     } else {
       this.drawRoomEntranceHatch(this.entrance, x, y);
     }
-    this.drawFixtures(x, y);
+    this.drawFixtures(x, y, "front");
   }
 
   drawPlanks(x, y) {
@@ -2781,15 +2967,17 @@ class ShipRoom {
     }
   }
 
-  drawFixtures(x, y) {
+  drawFixtures(x, y, passMode = "front") {
     for (const fixture of this.fixtures || []) {
       const fx = x + fixture.x * TILE_SIZE;
       const fy = y + fixture.y * TILE_SIZE;
       const fw = fixture.w * TILE_SIZE;
       const fh = fixture.h * TILE_SIZE;
-      if (this.drawObjectFixture(fixture, fx, fy, fw, fh)) {
+      if (this.drawObjectFixture(fixture, fx, fy, fw, fh, passMode)) {
         continue;
       }
+      const fixtureLayer = fixture.passMode === "behind" && fixture.hideActor !== false ? "behind" : "front";
+      if (fixtureLayer !== passMode) continue;
       if (fixture.kind === "table") {
         this.drawTable(fx, fy, fw, fh);
       } else if (fixture.kind === "porthole") {
@@ -2800,7 +2988,7 @@ class ShipRoom {
     }
   }
 
-  drawObjectFixture(fixture, x, y, w, h) {
+  drawObjectFixture(fixture, x, y, w, h, passMode) {
     const objectImage = images.objects?.[fixture.kind];
     if (!objectImage) {
       return false;
@@ -2811,7 +2999,23 @@ class ShipRoom {
     const drawY = y + padding;
     const drawW = Math.max(1, w - padding * 2);
     const drawH = Math.max(1, h - padding * 2);
+    const behind = new Set(fixture.passBehindTiles || []);
+    const front = new Set(fixture.passInFrontTiles || []);
+    const defaultLayer = fixture.passMode === "behind" && fixture.hideActor !== false ? "behind" : "front";
+    renderCtx.save();
+    renderCtx.beginPath();
+    for (let tileY = 0; tileY < fixture.h; tileY += 1) {
+      for (let tileX = 0; tileX < fixture.w; tileX += 1) {
+        const key = tileX + "," + tileY;
+        const tileLayer = behind.has(key) ? "behind" : front.has(key) ? "front" : defaultLayer;
+        if (tileLayer === passMode) {
+          renderCtx.rect(x + tileX * TILE_SIZE, y + tileY * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        }
+      }
+    }
+    renderCtx.clip();
     drawAsset(objectImage, drawX, drawY, drawW, drawH);
+    renderCtx.restore();
     return true;
   }
 
@@ -2841,7 +3045,9 @@ class ShipRoom {
     circle(x + w / 2, y + h / 2, Math.max(10, Math.min(w, h) * 0.25), false);
   }
 
-  drawForeground() {}
+  drawForeground(camera) {
+    renderCtx.drawImage(this.cachedLayers().foreground, -camera.x, -camera.y);
+  }
 
   hidesPlayer() {
     return false;
@@ -2853,6 +3059,206 @@ class ShipRoom {
       id: this.id,
       name: this.name,
     };
+  }
+}
+
+class WanderingRoomNpc {
+  constructor({ name, areaId, sprite, spawnTile, speed = 55 }) {
+    this.name = name;
+    this.areaId = areaId;
+    this.sprite = sprite;
+    this.rect = {
+      x: spawnTile.x * TILE_SIZE + 11,
+      y: spawnTile.y * TILE_SIZE + 8,
+      w: 26,
+      h: 34,
+    };
+    this.speed = speed;
+    this.target = null;
+    this.waitTime = 0.8;
+    this.transitionCooldown = 0;
+    this.walking = false;
+    this.facing = { x: 0, y: 1 };
+  }
+
+  update(dt, map) {
+    this.transitionCooldown = Math.max(0, this.transitionCooldown - dt);
+    if (!map.canWalk(this.rect)) {
+      this.moveToFirstOpenTile(map);
+    }
+
+    if (this.waitTime > 0) {
+      this.waitTime -= dt;
+      this.walking = false;
+      return;
+    }
+
+    if (!this.target) {
+      this.target = this.chooseTarget(map);
+      if (!this.target) {
+        this.waitTime = 1;
+        return;
+      }
+    }
+
+    const dx = this.target.x - this.rect.x;
+    const dy = this.target.y - this.rect.y;
+    const distance = Math.hypot(dx, dy);
+    if (distance < 3) {
+      this.rect.x = this.target.x;
+      this.rect.y = this.target.y;
+      this.target = null;
+      if (this.maybeTransitionRoom(map)) {
+        return;
+      }
+      this.waitTime = 0.8 + Math.random() * 1.8;
+      this.walking = false;
+      return;
+    }
+
+    const directionX = dx / distance;
+    const directionY = dy / distance;
+    this.facing = { x: directionX, y: directionY };
+    this.walking = true;
+    const movement = Math.min(this.speed * dt, distance);
+    if (!this.moveAxis(directionX * movement, 0, map)) {
+      this.target = null;
+    }
+    if (!this.moveAxis(0, directionY * movement, map)) {
+      this.target = null;
+    }
+  }
+
+  moveAxis(dx, dy, map) {
+    const previousX = this.rect.x;
+    const previousY = this.rect.y;
+    this.rect.x += dx;
+    this.rect.y += dy;
+    const blockedByActor = roomNpcs.some((npc) => (
+      npc !== this &&
+      npc.areaId === this.areaId &&
+      actorRectsOverlap(this, npc)
+    )) || (currentAreaId === this.areaId && actorRectsOverlap(this, player));
+    if (!map.canWalk(this.rect) || blockedByActor) {
+      this.rect.x = previousX;
+      this.rect.y = previousY;
+      this.walking = false;
+      return false;
+    }
+    return true;
+  }
+
+  chooseTarget(map) {
+    const transitions = this.transitionEntrances(map);
+    if (this.transitionCooldown <= 0 && transitions.length && Math.random() < 0.22) {
+      const entrance = transitions[Math.floor(Math.random() * transitions.length)];
+      const tileX = entrance.x + Math.floor((entrance.w - 1) / 2);
+      const tileY = entrance.y + entrance.h - 1;
+      return this.positionForTile(tileX, tileY);
+    }
+
+    const openTiles = [];
+    for (let tileY = 1; tileY < map.height - 1; tileY += 1) {
+      for (let tileX = 1; tileX < map.width - 1; tileX += 1) {
+        if (map.isTileBlocked(tileX, tileY) ||
+            map.isEntranceTile(tileX, tileY) ||
+            map.isRoomEntranceTile(tileX, tileY)) {
+          continue;
+        }
+        const target = this.positionForTile(tileX, tileY);
+        if (map.canWalk({ ...this.rect, ...target })) {
+          openTiles.push(target);
+        }
+      }
+    }
+    return openTiles.length
+      ? openTiles[Math.floor(Math.random() * openTiles.length)]
+      : null;
+  }
+
+  transitionEntrances(map) {
+    return [map.entrance, ...(map.roomEntrances || [])].filter((entrance) => (
+      entrance?.exitArea && shipRooms.has(entrance.exitArea)
+    ));
+  }
+
+  maybeTransitionRoom(map) {
+    if (this.transitionCooldown > 0) {
+      return false;
+    }
+    const footX = Math.floor((this.rect.x + this.rect.w / 2) / TILE_SIZE);
+    const footY = Math.floor((this.rect.y + this.rect.h) / TILE_SIZE);
+    const entrance = this.transitionEntrances(map).find((candidate) => (
+      footX >= candidate.x &&
+      footY >= candidate.y &&
+      footX < candidate.x + candidate.w &&
+      footY < candidate.y + candidate.h
+    ));
+    const nextMap = entrance ? shipRooms.get(entrance.exitArea) : null;
+    if (!nextMap) {
+      return false;
+    }
+
+    const previousAreaId = this.areaId;
+    const arrivalEntrance = [nextMap.entrance, ...(nextMap.roomEntrances || [])].find((candidate) => (
+      candidate?.exitArea === previousAreaId
+    ));
+    this.areaId = entrance.exitArea;
+    this.target = null;
+    this.walking = false;
+    this.waitTime = 0.7;
+    this.transitionCooldown = 2;
+
+    if (arrivalEntrance) {
+      const arrivalX = arrivalEntrance.x + Math.floor((arrivalEntrance.w - 1) / 2);
+      const arrivalY = arrivalEntrance.y <= 1
+        ? Math.min(nextMap.height - 2, arrivalEntrance.y + arrivalEntrance.h)
+        : Math.max(1, arrivalEntrance.y - 1);
+      const position = this.positionForTile(arrivalX, arrivalY);
+      this.rect.x = position.x;
+      this.rect.y = position.y;
+    } else {
+      const position = this.positionForTile(nextMap.spawn.x, nextMap.spawn.y);
+      this.rect.x = position.x;
+      this.rect.y = position.y;
+    }
+    return true;
+  }
+
+  moveToFirstOpenTile(map) {
+    this.target = null;
+    for (let tileY = 1; tileY < map.height - 1; tileY += 1) {
+      for (let tileX = 1; tileX < map.width - 1; tileX += 1) {
+        const position = this.positionForTile(tileX, tileY);
+        const candidate = { ...this.rect, ...position };
+        if (!map.isTileBlocked(tileX, tileY) && map.canWalk(candidate)) {
+          this.rect.x = position.x;
+          this.rect.y = position.y;
+          return;
+        }
+      }
+    }
+  }
+
+  positionForTile(tileX, tileY) {
+    return {
+      x: tileX * TILE_SIZE + (TILE_SIZE - this.rect.w) / 2,
+      y: tileY * TILE_SIZE + TILE_SIZE - this.rect.h - 6,
+    };
+  }
+
+  draw(camera) {
+    const x = this.rect.x - camera.x - 11;
+    const y = this.rect.y - camera.y - 42;
+    const bob = this.walking ? Math.sin(performance.now() / 150) * 1.2 : 0;
+    const img = images.npcs?.[this.sprite];
+    if (drawAsset(img, x, y + bob, 48, 84)) {
+      return;
+    }
+    fill("#17191a");
+    ellipse(this.rect.x - camera.x + this.rect.w / 2, this.rect.y - camera.y + 12, 28, 44);
+    fill("#b78d3b");
+    circle(this.rect.x - camera.x + this.rect.w / 2, this.rect.y - camera.y - 2, 9, true);
   }
 }
 
@@ -2909,11 +3315,14 @@ class Player {
   }
 
   moveAxis(dx, dy, world) {
-    this.rect.x += Math.round(dx);
-    this.rect.y += Math.round(dy);
-    if (!world.canWalk(this.rect)) {
-      this.rect.x -= Math.round(dx);
-      this.rect.y -= Math.round(dy);
+    this.rect.x += dx;
+    this.rect.y += dy;
+    const blockedByActor = roomNpcs.some((npc) => (
+      npc.areaId === currentAreaId && actorRectsOverlap(this, npc)
+    ));
+    if (!world.canWalk(this.rect) || blockedByActor) {
+      this.rect.x -= dx;
+      this.rect.y -= dy;
     }
   }
 
@@ -2930,8 +3339,6 @@ class Player {
     const spriteY = y + bob - 38;
 
     if (this.drawSprite(spriteX, spriteY, stride)) {
-      this.drawLegStep(spriteX, spriteY, stride);
-      this.drawEarSway(spriteX, spriteY, stride);
       return;
     }
 
@@ -2948,9 +3355,6 @@ class Player {
     stroke("rgba(243, 240, 232, 0.8)", 0.8);
     line(headX - 12, y + bob + 49, headX - 6, y + bob + 49);
     line(headX + 6, y + bob + 49, headX + 12, y + bob + 49);
-    fill("#05070b");
-    polygon([[headX - 9, headY - 12], [headX - 17, headY - 28], [headX - 2, headY - 18]]);
-    polygon([[headX + 9, headY - 12], [headX + 17, headY - 28], [headX + 2, headY - 18]]);
     fill("#111923");
     ellipse(headX, headY + 10, 34, 38);
     fill("#f2efe7");
@@ -2988,67 +3392,6 @@ class Player {
     return true;
   }
 
-  drawLegStep(x, y, stride) {
-    if (!this.walking) {
-      return;
-    }
-
-    const step = stride * 1.8;
-    renderCtx.save();
-    renderCtx.translate(x, y);
-    stroke("#0b0c10", 2.5);
-    renderCtx.lineCap = "round";
-    line(18 + step, 60, 17 + step, 71);
-    line(30 - step, 60, 31 - step, 71);
-    fill("#08090d");
-    ellipse(18 + step, 71, 10, 4);
-    ellipse(30 - step, 71, 10, 4);
-    stroke("rgba(243, 240, 232, 0.78)", 0.75);
-    line(15 + step, 70, 22 + step, 70);
-    line(26 - step, 70, 33 - step, 70);
-    renderCtx.restore();
-  }
-
-  drawEarSway(x, y, stride) {
-    if (!this.walking) {
-      return;
-    }
-
-    const swing = stride * 1.8;
-    renderCtx.save();
-    renderCtx.translate(x + 24, y + 32);
-    renderCtx.rotate(stride * 0.035);
-    renderCtx.translate(-24, -32);
-
-    fill("rgba(5, 7, 11, 0.92)");
-    polygon([
-      [13 + swing, 14],
-      [7 + swing * 0.35, 1],
-      [20 + swing, 10],
-    ]);
-    polygon([
-      [35 - swing, 14],
-      [41 - swing * 0.35, 1],
-      [28 - swing, 10],
-    ]);
-
-    fill("rgba(86, 96, 111, 0.74)");
-    polygon([
-      [14 + swing, 11],
-      [10 + swing * 0.35, 4],
-      [19 + swing, 10],
-    ]);
-    polygon([
-      [34 - swing, 11],
-      [38 - swing * 0.35, 4],
-      [29 - swing, 10],
-    ]);
-
-    stroke("rgba(216, 185, 255, 0.78)", 1);
-    line(10 + swing * 0.35, 5, 17 + swing, 11);
-    line(38 - swing * 0.35, 5, 31 - swing, 11);
-    renderCtx.restore();
-  }
 }
 
 class Camera {
@@ -3060,8 +3403,12 @@ class Camera {
   follow(rect, map = world) {
     const worldWidth = map.pixelWidth || MAP_WIDTH * TILE_SIZE;
     const worldHeight = map.pixelHeight || MAP_HEIGHT * TILE_SIZE;
-    this.x = clamp(rect.x + rect.w / 2 - screenWidth / 2, 0, worldWidth - screenWidth);
-    this.y = clamp(rect.y + rect.h / 2 - screenHeight / 2, 0, worldHeight - screenHeight);
+    this.x = worldWidth > screenWidth
+      ? clamp(rect.x + rect.w / 2 - screenWidth / 2, 0, worldWidth - screenWidth)
+      : (worldWidth - screenWidth) / 2;
+    this.y = worldHeight > screenHeight
+      ? clamp(rect.y + rect.h / 2 - screenHeight / 2, 0, worldHeight - screenHeight)
+      : (worldHeight - screenHeight) / 2;
   }
 }
 
@@ -3301,30 +3648,34 @@ function drawDialogueBox() {
   ctx.font = speakerFont;
   ctx.fillStyle = "#f0dfaa";
   ctx.textBaseline = "top";
-  const speakerMaxWidth = Math.max(80, dialogueMoreButtonRect.x - x - 36);
+  const speakerMaxWidth = hasMoreDialogue
+    ? Math.max(80, dialogueMoreButtonRect.x - x - 36)
+    : width - 48;
   if (ctx.measureText(dialogue.speaker).width > speakerMaxWidth) {
     ctx.font = "400 18px Creepster, Arial, Helvetica, sans-serif";
   }
-  ctx.fillText(dialogue.speaker, x + 24, y + 20);
+  ctx.fillText(dialogue.speaker, x + 24, y + 20, speakerMaxWidth);
 
-  ctx.font = "400 18px Creepster, Arial, Helvetica, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillStyle = hasMoreDialogue ? "rgba(49, 48, 68, 0.92)" : "rgba(49, 48, 68, 0.42)";
-  ctx.strokeStyle = hasMoreDialogue ? "rgba(235, 226, 176, 0.92)" : "rgba(235, 226, 176, 0.38)";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.roundRect(
-    dialogueMoreButtonRect.x,
-    dialogueMoreButtonRect.y,
-    dialogueMoreButtonRect.w,
-    dialogueMoreButtonRect.h,
-    7
-  );
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = hasMoreDialogue ? "#f5f4e8" : "rgba(245, 244, 232, 0.38)";
-  ctx.fillText("More", dialogueMoreButtonRect.x + dialogueMoreButtonRect.w / 2, dialogueMoreButtonRect.y + 5);
-  ctx.textAlign = "start";
+  if (hasMoreDialogue) {
+    ctx.font = "400 18px Creepster, Arial, Helvetica, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(49, 48, 68, 0.92)";
+    ctx.strokeStyle = "rgba(235, 226, 176, 0.92)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(
+      dialogueMoreButtonRect.x,
+      dialogueMoreButtonRect.y,
+      dialogueMoreButtonRect.w,
+      dialogueMoreButtonRect.h,
+      7
+    );
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#f5f4e8";
+    ctx.fillText("More", dialogueMoreButtonRect.x + dialogueMoreButtonRect.w / 2, dialogueMoreButtonRect.y + 5);
+    ctx.textAlign = "start";
+  }
 
   ctx.font = bodyFont;
   ctx.fillStyle = "#f7f1dd";
@@ -3335,9 +3686,12 @@ function drawDialogueBox() {
 }
 
 function resize() {
-  const scale = Math.min(window.devicePixelRatio || 1, 1.5);
-  screenWidth = window.innerWidth;
-  screenHeight = window.innerHeight;
+  const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches;
+  const scaleLimit = coarsePointer ? 1.25 : 1.5;
+  const scale = Math.min(window.devicePixelRatio || 1, scaleLimit);
+  const viewport = window.visualViewport;
+  screenWidth = Math.max(1, Math.round(viewport?.width || window.innerWidth));
+  screenHeight = Math.max(1, Math.round(viewport?.height || window.innerHeight));
   canvas.width = Math.floor(screenWidth * scale);
   canvas.height = Math.floor(screenHeight * scale);
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
@@ -3472,6 +3826,13 @@ const shipRooms = new Map([
   [AREA_SHIP_LOWER_ROOM, new ShipRoom(SHIP_LOWER_ROOM)],
 ]);
 const shipRoom = shipRooms.get(AREA_SHIP_ROOM);
+const captainAdrianVoss = new WanderingRoomNpc({
+  name: "Captain Adrian Voss",
+  areaId: AREA_SHIP_ROOM,
+  sprite: "captainAdrianVoss",
+  spawnTile: { x: 3, y: 4 },
+});
+const roomNpcs = [captainAdrianVoss];
 const player = new Player(world);
 const camera = new Camera();
 const backdropCamera = new Camera();
@@ -3535,6 +3896,19 @@ function maybeEnterShipRoom() {
   }
 }
 
+function entranceEntryDirection(entrance, foot, actor = player) {
+  if (entrance?.entryAxis !== "vertical") {
+    return actor.facing.y >= 0 ? "down" : "up";
+  }
+  if (actor.facing.y > 0.5 && foot.y === entrance.y) {
+    return "down";
+  }
+  if (actor.facing.y < -0.5 && foot.y === entrance.y + entrance.h - 1) {
+    return "up";
+  }
+  return "";
+}
+
 function maybeExitShipRoom() {
   if (!isShipRoomArea(currentAreaId)) {
     return;
@@ -3542,16 +3916,24 @@ function maybeExitShipRoom() {
   const foot = playerFootTile();
   const map = activeMap();
   const roomEntrance = map.roomEntranceAtTile(foot.x, foot.y);
-  if (roomEntrance?.exitArea && isShipRoomArea(roomEntrance.exitArea)) {
+  const roomEntryDirection = entranceEntryDirection(roomEntrance, foot);
+  if (roomEntryDirection && roomEntrance?.exitArea && isShipRoomArea(roomEntrance.exitArea)) {
     transitionToArea(roomEntrance.exitArea, {
       spawn: "hatch",
+      entryDirection: roomEntryDirection,
+      fromAreaId: currentAreaId,
       label: shipRooms.get(roomEntrance.exitArea)?.name || roomEntrance.name,
     });
     return;
   }
-  if (map.entrance.exitArea && isShipRoomArea(map.entrance.exitArea) && map.isEntranceTile(foot.x, foot.y)) {
+  const mainEntryDirection = map.isEntranceTile(foot.x, foot.y)
+    ? entranceEntryDirection(map.entrance, foot)
+    : "";
+  if (mainEntryDirection && map.entrance.exitArea && isShipRoomArea(map.entrance.exitArea)) {
     transitionToArea(map.entrance.exitArea, {
       spawn: "hatch",
+      entryDirection: mainEntryDirection,
+      fromAreaId: currentAreaId,
       label: shipRooms.get(map.entrance.exitArea)?.name || map.entrance.name,
     });
     return;
@@ -3561,7 +3943,12 @@ function maybeExitShipRoom() {
   }
 }
 
-function transitionToArea(areaId, { spawn = "default", label = "" } = {}) {
+function transitionToArea(areaId, {
+  spawn = "default",
+  label = "",
+  entryDirection = "down",
+  fromAreaId = currentAreaId,
+} = {}) {
   const nextMap = shipRooms.get(areaId);
   if (!nextMap) {
     setCurrentArea(AREA_ISLAND);
@@ -3571,9 +3958,16 @@ function transitionToArea(areaId, { spawn = "default", label = "" } = {}) {
   if (spawn === "default") {
     nextMap.spawnAtEntrance(player);
   } else if (spawn === "hatch") {
-    player.rect.x = 9 * TILE_SIZE + 13;
-    player.rect.y = 2 * TILE_SIZE + 8;
-    player.facing = { x: 0, y: 1 };
+    const arrivalEntrance = [nextMap.entrance, ...(nextMap.roomEntrances || [])].find((entrance) => (
+      entrance?.exitArea === fromAreaId
+    )) || nextMap.entrance;
+    const arrivalTileX = arrivalEntrance.x + Math.floor((arrivalEntrance.w - 1) / 2);
+    const arrivalTileY = entryDirection === "up"
+      ? Math.max(1, arrivalEntrance.y - 1)
+      : Math.min(nextMap.height - 2, arrivalEntrance.y + arrivalEntrance.h);
+    player.rect.x = arrivalTileX * TILE_SIZE + 13;
+    player.rect.y = arrivalTileY * TILE_SIZE + 8;
+    player.facing = { x: 0, y: entryDirection === "up" ? -1 : 1 };
     player.stepTimer = 0;
     player.walking = false;
   }
@@ -3589,13 +3983,6 @@ function startRoomTransition(label) {
   };
 }
 
-function centerCameraOnMap(camera, map) {
-  const worldWidth = map.pixelWidth || MAP_WIDTH * TILE_SIZE;
-  const worldHeight = map.pixelHeight || MAP_HEIGHT * TILE_SIZE;
-  camera.x = (worldWidth - screenWidth) / 2;
-  camera.y = (worldHeight - screenHeight) / 2;
-}
-
 function setHarbourBackdropCamera() {
   const harborX = (SHIP_BUILDING.x + SHIP_BUILDING.w / 2) * TILE_SIZE;
   const harborY = (SHIP_BUILDING.y + SHIP_BUILDING.h / 2) * TILE_SIZE;
@@ -3605,12 +3992,26 @@ function setHarbourBackdropCamera() {
 
 for (const img of graphicsList()) {
   if (!img.complete) {
-    img.addEventListener("load", () => world.invalidateCache(), { once: true });
-    img.addEventListener("error", () => world.invalidateCache(), { once: true });
+    const invalidateGraphicCaches = () => {
+      world.invalidateCache();
+      for (const room of shipRooms.values()) {
+        room.invalidateCache();
+      }
+    };
+    img.addEventListener("load", invalidateGraphicCaches, { once: true });
+    img.addEventListener("error", invalidateGraphicCaches, { once: true });
   }
 }
 loadDesignMap();
-window.setInterval(loadDesignMap, 5000);
+window.setInterval(loadDesignMap, 15000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    lastTime = performance.now();
+    loadDesignMap();
+  } else {
+    stopPlayerInput();
+  }
+});
 
 function frame(now) {
   const dt = Math.min((now - lastTime) / 1000, 0.05);
@@ -3618,6 +4019,12 @@ function frame(now) {
 
   if (gameStarted) {
     player.update(dt, activeMap());
+    for (const npc of roomNpcs) {
+      const npcMap = shipRooms.get(npc.areaId);
+      if (npcMap) {
+        npc.update(dt, npcMap);
+      }
+    }
     maybeEnterShipRoom();
     maybeExitShipRoom();
     const position = currentGameState().position;
@@ -3639,9 +4046,15 @@ function frame(now) {
     world.drawForeground(backdropCamera);
     ctx.fillStyle = "rgba(6, 8, 11, 0.48)";
     ctx.fillRect(0, 0, screenWidth, screenHeight);
-    centerCameraOnMap(camera, map);
+    camera.follow(player.rect, map);
     map.draw(camera);
-    player.draw(camera);
+    const roomActors = [
+      ...roomNpcs.filter((npc) => npc.areaId === currentAreaId),
+      player,
+    ];
+    roomActors
+      .sort((left, right) => (left.rect.y + left.rect.h) - (right.rect.y + right.rect.h))
+      .forEach((actor) => actor.draw(camera));
     map.drawForeground(camera);
   } else {
     camera.follow(player.rect, map);
@@ -4487,6 +4900,7 @@ function defaultMenuActionsCollapsed() {
 
 window.addEventListener("resize", resize);
 window.visualViewport?.addEventListener("resize", resize);
+window.addEventListener("blur", stopPlayerInput);
 window.addEventListener("beforeunload", () => saveActiveGameState("beforeunload", { beacon: true }));
 canvas.addEventListener("pointerdown", handleCanvasPointerDown);
 window.addEventListener("keydown", (event) => {
@@ -4531,6 +4945,11 @@ document.querySelectorAll("[data-pad]").forEach((button) => {
   const press = (event) => {
     event.preventDefault();
     pad[direction] = true;
+    try {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    } catch (error) {
+      // Chrome can reject capture when the pointer is no longer active; movement should still start.
+    }
     startMusic();
   };
   const release = (event) => {
@@ -4541,6 +4960,7 @@ document.querySelectorAll("[data-pad]").forEach((button) => {
   button.addEventListener("pointerup", release);
   button.addEventListener("pointercancel", release);
   button.addEventListener("pointerleave", release);
+  button.addEventListener("lostpointercapture", release);
 });
 
 inventorySlotButtons.forEach((button) => {

@@ -1,7 +1,7 @@
 import sqlite3
 import time
 
-from .config import DB_PATH
+from .config import ADMIN_USER, DB_PATH
 
 
 def connect():
@@ -35,6 +35,15 @@ def init_database():
                 created_at INTEGER NOT NULL,
                 expires_at INTEGER NOT NULL,
                 FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS admin_sessions (
+                token TEXT PRIMARY KEY,
+                created_at INTEGER NOT NULL,
+                expires_at INTEGER NOT NULL
             )
             """
         )
@@ -74,6 +83,9 @@ def init_database():
             )
             """
         )
+        # The admin identity belongs to a separate authentication system and
+        # must never appear as a player in the game.
+        connection.execute("DELETE FROM users WHERE name = ?", (ADMIN_USER,))
 
 
 def now_seconds():

@@ -3,7 +3,13 @@ import hashlib
 import hmac
 import secrets
 
-from .config import SESSION_COOKIE, SESSION_SECONDS
+from .config import (
+    ADMIN_PASSWORD,
+    ADMIN_SESSION_COOKIE,
+    ADMIN_USER,
+    SESSION_COOKIE,
+    SESSION_SECONDS,
+)
 from .database import connect, now_seconds
 
 
@@ -37,13 +43,73 @@ def clear_cookie_header():
     return f"{SESSION_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax; HttpOnly"
 
 
-def session_token(headers):
-    """Extract the current session token from request cookies."""
+def cookie_token(headers, cookie_name):
+    """Extract a named session token from request cookies."""
     raw_cookie = headers.get("Cookie", "")
     jar = cookies.SimpleCookie()
     jar.load(raw_cookie)
-    morsel = jar.get(SESSION_COOKIE)
+    morsel = jar.get(cookie_name)
     return morsel.value if morsel else None
+
+
+def session_token(headers):
+    """Extract the current player session token from request cookies."""
+    return cookie_token(headers, SESSION_COOKIE)
+
+
+def admin_cookie_header(token):
+    """Build the Set-Cookie header for a dedicated admin session."""
+    return (
+        f"{ADMIN_SESSION_COOKIE}={token}; Max-Age={SESSION_SECONDS}; "
+        "Path=/; SameSite=Lax; HttpOnly"
+    )
+
+
+def clear_admin_cookie_header():
+    """Build the Set-Cookie header that clears the admin session cookie."""
+    return f"{ADMIN_SESSION_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax; HttpOnly"
+
+
+def login_admin(name, password):
+    """Authenticate the hardwired administrator independently of players."""
+    valid_name = hmac.compare_digest(name, ADMIN_USER)
+    valid_password = hmac.compare_digest(password, ADMIN_PASSWORD)
+    if not valid_name or not valid_password:
+        return None
+
+    token = secrets.token_urlsafe(32)
+    now = now_seconds()
+    with connect() as connection:
+        connection.execute("DELETE FROM admin_sessions WHERE expires_at <= ?", (now,))
+        connection.execute(
+            """
+            INSERT INTO admin_sessions (token, created_at, expires_at)
+            VALUES (?, ?, ?)
+            """,
+            (token, now, now + SESSION_SECONDS),
+        )
+    return token
+
+
+def current_admin(headers):
+    """Return the hardwired admin identity for a valid admin session."""
+    token = cookie_token(headers, ADMIN_SESSION_COOKIE)
+    if not token:
+        return None
+    with connect() as connection:
+        row = connection.execute(
+            "SELECT token FROM admin_sessions WHERE token = ? AND expires_at > ?",
+            (token, now_seconds()),
+        ).fetchone()
+    return {"name": ADMIN_USER} if row else None
+
+
+def logout_admin(headers):
+    """Delete the current dedicated admin session."""
+    token = cookie_token(headers, ADMIN_SESSION_COOKIE)
+    if token:
+        with connect() as connection:
+            connection.execute("DELETE FROM admin_sessions WHERE token = ?", (token,))
 
 
 def current_user(headers):
@@ -107,4 +173,3 @@ def logout(headers):
     if token:
         with connect() as connection:
             connection.execute("DELETE FROM sessions WHERE token = ?", (token,))
-

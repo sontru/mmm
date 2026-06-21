@@ -4,8 +4,20 @@ from urllib.parse import parse_qs, urlparse
 
 from .admin import admin_assets_page, admin_page, admin_rooms_page, admin_summary
 from .asset_editor import graphics_assets, read_graphics_asset, save_graphics_asset
-from .auth import clear_cookie_header, cookie_header, current_user, login_or_create_player, logout
+from .auth import (
+    admin_cookie_header,
+    clear_admin_cookie_header,
+    clear_cookie_header,
+    cookie_header,
+    current_admin,
+    current_user,
+    login_admin,
+    login_or_create_player,
+    logout,
+    logout_admin,
+)
 from .code_editor import code_files, read_code_file, save_code_file
+from .config import ADMIN_USER
 from .database import connect, now_seconds
 from .design_settings import save_map_overrides, save_room_overrides
 from .game_design import design_payload
@@ -24,10 +36,16 @@ class GameHandler(SimpleHTTPRequestHandler):
     # ------------------------------------------------------------------
 
     def end_headers(self):
-        """Add no-cache headers before completing every HTTP response."""
-        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
-        self.send_header("Pragma", "no-cache")
-        self.send_header("Expires", "0")
+        """Keep dynamic data fresh while allowing static game assets to be reused."""
+        path = urlparse(self.path).path
+        if path.startswith("/api/") or path.startswith("/admin"):
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
+        elif path.startswith("/assets/"):
+            self.send_header("Cache-Control", "public, max-age=300, stale-while-revalidate=86400")
+        else:
+            self.send_header("Cache-Control", "no-cache")
         super().end_headers()
 
     # ------------------------------------------------------------------
@@ -46,6 +64,7 @@ class GameHandler(SimpleHTTPRequestHandler):
             "/api/admin/code-files": self.handle_admin_code_files,
             "/api/admin/code-file": self.handle_admin_code_file,
             "/admin": self.handle_admin_page,
+            "/admin/": self.handle_admin_page,
             "/admin/rooms": self.handle_admin_rooms_page,
             "/admin/assets": self.handle_admin_assets_page,
         }
@@ -60,6 +79,8 @@ class GameHandler(SimpleHTTPRequestHandler):
         routes = {
             "/api/login": self.handle_login,
             "/api/logout": self.handle_logout,
+            "/api/admin/login": self.handle_admin_login,
+            "/api/admin/logout": self.handle_admin_logout,
             "/api/save": self.handle_save,
             "/api/events": self.handle_event,
             "/api/admin/map": self.handle_admin_map,
@@ -145,6 +166,10 @@ class GameHandler(SimpleHTTPRequestHandler):
             self.send_json({"ok": False, "error": "Name or password is too long"}, 400)
             return
 
+        if name == ADMIN_USER:
+            self.send_json({"ok": False, "error": "That name is reserved for the separate admin login"}, 403)
+            return
+
         if create_allowed:
             with connect() as connection:
                 existing = connection.execute("SELECT id FROM users WHERE name = ?", (name,)).fetchone()
@@ -171,6 +196,28 @@ class GameHandler(SimpleHTTPRequestHandler):
             self.track_event(user["id"], "logout", {})
         logout(self.headers)
         self.send_json({"ok": True}, extra_headers={"Set-Cookie": clear_cookie_header()})
+
+    def handle_admin_login(self):
+        """Authenticate the administrator without creating a game player."""
+        payload = self.read_json()
+        if payload is None:
+            self.send_json({"ok": False, "error": "Invalid JSON"}, 400)
+            return
+        name = str(payload.get("name", "")).strip()
+        password = str(payload.get("password", ""))
+        token = login_admin(name, password)
+        if not token:
+            self.send_json({"ok": False, "error": "Admin name or password did not match"}, 401)
+            return
+        self.send_json(
+            {"ok": True, "admin": {"name": ADMIN_USER}},
+            extra_headers={"Set-Cookie": admin_cookie_header(token)},
+        )
+
+    def handle_admin_logout(self):
+        """Log out only the dedicated administrator session."""
+        logout_admin(self.headers)
+        self.send_json({"ok": True}, extra_headers={"Set-Cookie": clear_admin_cookie_header()})
 
     def handle_get_save(self):
         """Return the logged-in player saved game state."""
@@ -243,23 +290,23 @@ class GameHandler(SimpleHTTPRequestHandler):
         self.send_json({"ok": True, "design": design_payload()})
 
     def handle_admin_summary(self):
-        """Return dashboard summary data to a local admin request."""
-        if not self.is_local_admin():
-            self.send_json({"ok": False, "error": "Admin dashboard is only available from this computer"}, 403)
+        """Return dashboard summary data to the authorized API user."""
+        if not self.is_admin():
+            self.send_json({"ok": False, "error": f"Login as {ADMIN_USER} to access the admin dashboard"}, 401)
             return
         self.send_json({"ok": True, "summary": admin_summary()})
 
     def handle_admin_assets(self):
         """Return editable graphics assets to the local admin interface."""
-        if not self.is_local_admin():
-            self.send_json({"ok": False, "error": "Admin dashboard is only available from this computer"}, 403)
+        if not self.is_admin():
+            self.send_json({"ok": False, "error": f"Login as {ADMIN_USER} to access the admin dashboard"}, 401)
             return
         self.send_json({"ok": True, "assets": graphics_assets()})
 
     def handle_admin_asset(self):
         """Return one SVG asset to the local admin editor."""
-        if not self.is_local_admin():
-            self.send_json({"ok": False, "error": "Admin dashboard is only available from this computer"}, 403)
+        if not self.is_admin():
+            self.send_json({"ok": False, "error": f"Login as {ADMIN_USER} to access the admin dashboard"}, 401)
             return
         params = parse_qs(urlparse(self.path).query)
         asset_path = params.get("path", [""])[0]
@@ -272,15 +319,15 @@ class GameHandler(SimpleHTTPRequestHandler):
 
     def handle_admin_code_files(self):
         """Return editable project code files to the local admin interface."""
-        if not self.is_local_admin():
-            self.send_json({"ok": False, "error": "Admin dashboard is only available from this computer"}, 403)
+        if not self.is_admin():
+            self.send_json({"ok": False, "error": f"Login as {ADMIN_USER} to access the admin dashboard"}, 401)
             return
         self.send_json({"ok": True, "files": code_files()})
 
     def handle_admin_code_file(self):
         """Return one project code file to the local admin editor."""
-        if not self.is_local_admin():
-            self.send_json({"ok": False, "error": "Admin dashboard is only available from this computer"}, 403)
+        if not self.is_admin():
+            self.send_json({"ok": False, "error": f"Login as {ADMIN_USER} to access the admin dashboard"}, 401)
             return
         params = parse_qs(urlparse(self.path).query)
         file_path = params.get("path", [""])[0]
@@ -292,16 +339,16 @@ class GameHandler(SimpleHTTPRequestHandler):
         self.send_json({"ok": True, "file": file_data})
 
     def handle_admin_page(self):
-        """Serve the local-only admin dashboard page."""
-        if not self.is_local_admin():
-            self.send_html("<h1>Admin dashboard is only available from this computer</h1>", 403)
+        """Serve the admin dashboard to the authorized API user."""
+        if not self.is_admin():
+            self.send_html(self.admin_login_page())
             return
         self.send_html(admin_page())
 
     def handle_admin_map(self):
         """Persist local admin map tile and blocking edits."""
-        if not self.is_local_admin():
-            self.send_json({"ok": False, "error": "Admin dashboard is only available from this computer"}, 403)
+        if not self.is_admin():
+            self.send_json({"ok": False, "error": f"Login as {ADMIN_USER} to access the admin dashboard"}, 401)
             return
         payload = self.read_json()
         if payload is None:
@@ -321,8 +368,8 @@ class GameHandler(SimpleHTTPRequestHandler):
 
     def handle_admin_asset_save(self):
         """Persist an edited SVG asset from the local admin editor."""
-        if not self.is_local_admin():
-            self.send_json({"ok": False, "error": "Admin dashboard is only available from this computer"}, 403)
+        if not self.is_admin():
+            self.send_json({"ok": False, "error": f"Login as {ADMIN_USER} to access the admin dashboard"}, 401)
             return
         payload = self.read_json()
         if payload is None:
@@ -337,8 +384,8 @@ class GameHandler(SimpleHTTPRequestHandler):
 
     def handle_admin_code_file_save(self):
         """Persist an edited project code file from the local admin editor."""
-        if not self.is_local_admin():
-            self.send_json({"ok": False, "error": "Admin dashboard is only available from this computer"}, 403)
+        if not self.is_admin():
+            self.send_json({"ok": False, "error": f"Login as {ADMIN_USER} to access the admin dashboard"}, 401)
             return
         payload = self.read_json()
         if payload is None:
@@ -352,23 +399,23 @@ class GameHandler(SimpleHTTPRequestHandler):
         self.send_json({"ok": True, "file": file_data})
 
     def handle_admin_rooms_page(self):
-        """Serve a simplified local admin room editor page."""
-        if not self.is_local_admin():
-            self.send_html("<h1>Admin dashboard is only available from this computer</h1>", 403)
+        """Serve the room editor to the authorized API user."""
+        if not self.is_admin():
+            self.send_html(self.admin_login_page())
             return
         self.send_html(admin_rooms_page())
 
     def handle_admin_assets_page(self):
-        """Serve the local admin graphics and code editor page."""
-        if not self.is_local_admin():
-            self.send_html("<h1>Admin dashboard is only available from this computer</h1>", 403)
+        """Serve the asset editor to the authorized API user."""
+        if not self.is_admin():
+            self.send_html(self.admin_login_page())
             return
         self.send_html(admin_assets_page())
 
     def handle_admin_room_save(self):
         """Persist a single room override from the local admin interface."""
-        if not self.is_local_admin():
-            self.send_json({"ok": False, "error": "Admin dashboard is only available from this computer"}, 403)
+        if not self.is_admin():
+            self.send_json({"ok": False, "error": f"Login as {ADMIN_USER} to access the admin dashboard"}, 401)
             return
         payload = self.read_json()
         if payload is None:
@@ -427,9 +474,119 @@ class GameHandler(SimpleHTTPRequestHandler):
             )
 
     # ------------------------------------------------------------------
-    # Local-only admin guard
+    # Admin authentication guard
     # ------------------------------------------------------------------
 
-    def is_local_admin(self):
-        """Return whether the request originated from this computer."""
-        return self.client_address[0] in {"127.0.0.1", "::1"}
+    def admin_login_page(self):
+        """Render a login form that returns to the requested admin page."""
+        return_path = json.dumps(urlparse(self.path).path)
+        admin_user = json.dumps(ADMIN_USER)
+        return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Login · Abbey Island Mystery</title>
+  <style>
+    :root {{ color-scheme: dark; }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: #ddd6c7;
+      background:
+        radial-gradient(circle at 50% 15%, rgba(103, 91, 81, .22), transparent 38%),
+        #151619;
+      font: 16px/1.5 Georgia, "Times New Roman", serif;
+    }}
+    main {{
+      width: min(100%, 420px);
+      padding: 32px;
+      border: 1px solid #514c45;
+      border-radius: 8px;
+      background: rgba(35, 36, 41, .96);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, .45);
+    }}
+    h1 {{ margin: 0 0 8px; color: #f0e9da; font-size: 1.8rem; }}
+    p {{ margin: 0 0 24px; color: #aaa396; }}
+    label {{ display: block; margin: 16px 0 6px; color: #d8d0c1; }}
+    input {{
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid #625d54;
+      border-radius: 4px;
+      color: #f3eee4;
+      background: #1b1c20;
+      font: inherit;
+    }}
+    input:focus {{ outline: 2px solid #8f8068; outline-offset: 1px; }}
+    input[readonly] {{ color: #b9b1a3; background: #202126; }}
+    button {{
+      width: 100%;
+      margin-top: 22px;
+      padding: 11px 16px;
+      border: 1px solid #8e8069;
+      border-radius: 4px;
+      color: #171719;
+      background: #c7b99f;
+      font: 700 16px Georgia, "Times New Roman", serif;
+      cursor: pointer;
+    }}
+    button:disabled {{ cursor: wait; opacity: .65; }}
+    #status {{ min-height: 24px; margin: 14px 0 0; color: #db9d91; }}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Admin Login</h1>
+    <p>Enter the administrator password to continue.</p>
+    <form id="adminLoginForm">
+      <label for="adminUser">User</label>
+      <input id="adminUser" type="text" value="{ADMIN_USER}" autocomplete="username" readonly>
+      <label for="adminPassword">Password</label>
+      <input id="adminPassword" type="password" autocomplete="current-password" autofocus required>
+      <button type="submit">Log in</button>
+      <div id="status" role="status" aria-live="polite"></div>
+    </form>
+  </main>
+  <script>
+    const form = document.getElementById("adminLoginForm");
+    const password = document.getElementById("adminPassword");
+    const button = form.querySelector("button");
+    const status = document.getElementById("status");
+    form.addEventListener("submit", async (event) => {{
+      event.preventDefault();
+      button.disabled = true;
+      status.textContent = "Logging in…";
+      try {{
+        const response = await fetch("/api/admin/login", {{
+          method: "POST",
+          credentials: "same-origin",
+          headers: {{ "Content-Type": "application/json" }},
+          body: JSON.stringify({{
+            name: {admin_user},
+            password: password.value,
+            create: false
+          }})
+        }});
+        const result = await response.json();
+        if (!response.ok || !result.ok) {{
+          throw new Error(result.error || "Login failed");
+        }}
+        window.location.replace({return_path});
+      }} catch (error) {{
+        status.textContent = error.message || "Login failed";
+        password.select();
+        button.disabled = false;
+      }}
+    }});
+  </script>
+</body>
+</html>"""
+
+    def is_admin(self):
+        """Return whether the request has a dedicated admin session."""
+        return current_admin(self.headers) is not None

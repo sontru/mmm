@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="84" viewBox="0 0 48 84" role="img" aria-label="Martha Hale NPC sprite">
+  <defs>
+    <linearGradient id="dressOuter" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f271f"/>
+      <stop offset="1" stop-color="#14100d"/>
+    </linearGradient>
+    <linearGradient id="dressInner" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a3a2c"/>
+      <stop offset="1" stop-color="#201813"/>
+    </linearGradient>
+    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b9865d"/>
+      <stop offset="1" stop-color="#744a32"/>
+    </linearGradient>
+    <linearGradient id="hair" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b9b6b1"/>
+      <stop offset="1" stop-color="#6a6762"/>
+    </linearGradient>
+    <linearGradient id="brooch" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cba85c"/>
+      <stop offset="1" stop-color="#8d6b2e"/>
+    </linearGradient>
+  </defs>
+
+  <!-- shadow -->
+  <ellipse cx="24" cy="77" rx="15" ry="4.2" fill="#090807" opacity=".55"/>
+
+  <!-- robe silhouette -->
+  <path d="M14 35 C10 44 8.5 54 8 69 C13 73 35 73 40 69 C39.5 54 38 44 34 35 C31 32 28 31 24 31 C20 31 17 32 14 35 Z" fill="#15110e"/>
+  <path d="M15 36 C12 45 11 56 11 68 C14 70.5 34 70.5 37 68 C37 56 36 45 33 36 C30 33.5 27.5 32.6 24 32.6 C20.5 32.6 18 33.5 15 36 Z" fill="url(#dressOuter)"/>
+
+  <!-- sleeves -->
+  <path d="M15 40 C12 48 11.5 56.5 12 67 C14 68.5 17 68.5 18.5 67 C18 57 18.5 47.5 20.5 39 Z" fill="#30251d"/>
+  <path d="M33 40 C36 48 36.5 56.5 36 67 C34 68.5 31 68.5 29.5 67 C30 57 29.5 47.5 27.5 39 Z" fill="#30251d"/>
+  <path d="M15.3 42 C14 50 13.8 58 14.4 67" fill="none" stroke="#665445" stroke-width=".9" opacity=".55"/>
+  <path d="M32.7 42 C34 50 34.2 58 33.6 67" fill="none" stroke="#665445" stroke-width=".9" opacity=".55"/>
+
+  <!-- feet -->
+  <path d="M14.5 75 C17 73 20 73 22.2 75 C20.4 76.9 16.2 77 14.5 75 Z" fill="#111010"/>
+  <path d="M25.8 75 C28 73 31 73 33.5 75 C31.8 77 27.6 76.9 25.8 75 Z" fill="#111010"/>
+  <path d="M16.2 74.5 C17.6 74 19.7 74 21 74.5" fill="none" stroke="#4a4038" stroke-width=".6" opacity=".65"/>
+  <path d="M27 74.5 C28.3 74 30.4 74 31.8 74.5" fill="none" stroke="#4a4038" stroke-width=".6" opacity=".65"/>
+
+  <!-- central dress panel -->
+  <path d="M18.6 34.5 C19.2 44 19.4 55 20 66 H28 C28.6 55 28.8 44 29.4 34.5 C27.7 33.6 26 33.2 24 33.2 C22 33.2 20.3 33.6 18.6 34.5 Z" fill="url(#dressInner)"/>
+  <path d="M24 38 V66" stroke="#625243" stroke-width="1" opacity=".7"/>
+  <path d="M20.2 43 H27.8 M20.6 50 H27.4 M21 57 H27" stroke="#57473a" stroke-width=".8" opacity=".35"/>
+
+  <!-- collar -->
+  <path d="M19 31.5 C20 34.2 22 36 24 36 C26 36 28 34.2 29 31.5 C27 32.4 21 32.4 19 31.5 Z" fill="#2d251f"/>
+  <path d="M20 32.2 C21.5 34 26.5 34 28 32.2" fill="none" stroke="#665546" stroke-width=".8" opacity=".6"/>
+
+  <!-- face and hair base -->
+  <path d="M16.3 21 C16.7 15 20 11 24 10.8 C28 11 31.3 15 31.7 21 C31.1 29 28.5 33.7 24 34 C19.5 33.7 16.9 29 16.3 21 Z" fill="url(#skin)"/>
+
+  <!-- hair mass -->
+  <path d="M14.5 21 C15 13 19 8.8 24 8.3 C29 8.8 33 13 33.5 21 C32.8 19.2 31.7 18.1 30.4 17.3 C28.8 16.3 26.6 15.8 24 15.8 C21.4 15.8 19.2 16.3 17.6 17.3 C16.3 18.1 15.2 19.2 14.5 21 Z" fill="#66635f"/>
+  <path d="M15.2 20.4 C15.8 13.7 19.5 10.1 24 9.6 C28.5 10.1 32.2 13.7 32.8 20.4 C31.7 18.6 30.1 17.2 28.2 16.1 C26.9 15.4 25.4 15 24 15 C22.6 15 21.1 15.4 19.8 16.1 C17.9 17.2 16.3 18.6 15.2 20.4 Z" fill="url(#hair)"/>
+  <path d="M16.3 18.4 C18.5 13.2 22 11.5 24 11.5 C26 11.5 29.5 13.2 31.7 18.4" fill="none" stroke="#d3d0ca" stroke-width="1.2" opacity=".85"/>
+  <path d="M16.7 20.6 C18.3 18 20.5 16.6 22.3 15.8" fill="none" stroke="#4d4a46" stroke-width="1.2" stroke-linecap="round" opacity=".95"/>
+  <path d="M31.3 20.6 C29.7 18 27.5 16.6 25.7 15.8" fill="none" stroke="#4d4a46" stroke-width="1.2" stroke-linecap="round" opacity=".95"/>
+
+  <!-- face details -->
+  <path d="M18.6 21.2 C20 19.7 21.8 19.6 23.2 20.8" fill="none" stroke="#3f2619" stroke-width="1.1" stroke-linecap="round"/>
+  <path d="M24.8 20.8 C26.2 19.6 28 19.7 29.4 21.2" fill="none" stroke="#3f2619" stroke-width="1.1" stroke-linecap="round"/>
+  <ellipse cx="20.9" cy="22.7" rx="1" ry=".75" fill="#171514"/>
+  <ellipse cx="27.1" cy="22.7" rx="1" ry=".75" fill="#171514"/>
+  <circle cx="21.2" cy="22.45" r=".22" fill="#dbc49e" opacity=".9"/>
+  <circle cx="27.4" cy="22.45" r=".22" fill="#dbc49e" opacity=".9"/>
+  <path d="M24.3 23.2 C25 25.8 24.8 27.2 23.5 28.1" fill="none" stroke="#6f4632" stroke-width=".8" stroke-linecap="round"/>
+  <path d="M20.1 26.8 C21.1 27.4 22.2 27.6 23.2 27.4" fill="none" stroke="#8b5c42" stroke-width=".45" opacity=".5"/>
+  <path d="M24.8 27.4 C25.8 27.6 26.9 27.4 27.9 26.8" fill="none" stroke="#8b5c42" stroke-width=".45" opacity=".5"/>
+  <path d="M21.2 29.1 C23 29.9 25 29.9 26.8 29.1" fill="none" stroke="#301a12" stroke-width=".9" stroke-linecap="round"/>
+  <path d="M18.7 24.1 C19.4 30.2 21.4 33.1 24 33.6 C26.6 33.1 28.6 30.2 29.3 24.1" fill="none" stroke="#5b3b29" stroke-width=".65" opacity=".32"/>
+  <path d="M18.2 24.8 C18.8 26.2 19.6 27 20.5 27.6" fill="none" stroke="#4f3426" stroke-width=".5" opacity=".35"/>
+  <path d="M29.8 24.8 C29.2 26.2 28.4 27 27.5 27.6" fill="none" stroke="#4f3426" stroke-width=".5" opacity=".35"/>
+
+  <!-- neckline brooch/buttons -->
+  <circle cx="24" cy="37.6" r="1.2" fill="url(#brooch)"/>
+  <circle cx="24" cy="41.4" r=".85" fill="#8b6e35"/>
+  <circle cx="24" cy="45" r=".65" fill="#705523"/>
+
+  <!-- hands tucked together -->
+  <path d="M16.5 55 C18.2 56.7 19.6 57.1 21.2 56.1" fill="none" stroke="#8c6145" stroke-width="2" stroke-linecap="round"/>
+  <path d="M31.5 55 C29.8 56.7 28.4 57.1 26.8 56.1" fill="none" stroke="#8c6145" stroke-width="2" stroke-linecap="round"/>
+  <path d="M15.8 52 C17.6 54.1 19.5 55.4 21.7 55.6" fill="none" stroke="#3a2f26" stroke-width="3.8" stroke-linecap="round"/>
+  <path d="M32.2 52 C30.4 54.1 28.5 55.4 26.3 55.6" fill="none" stroke="#3a2f26" stroke-width="3.8" stroke-linecap="round"/>
+
+  <!-- subtle pixel highlights -->
+  <rect x="19" y="17" width="2" height="2" fill="#d2d0ca" opacity=".25"/>
+  <rect x="27" y="17" width="2" height="2" fill="#d2d0ca" opacity=".18"/>
+  <rect x="17.8" y="35.5" width="2" height="9" fill="#725d49" opacity=".25"/>
+  <rect x="29.2" y="37" width="2" height="10" fill="#5a4838" opacity=".35"/>
+  <rect x="13.6" y="42" width="1.8" height="10" fill="#4e3f33" opacity=".45"/>
+  <rect x="32.6" y="42" width="1.8" height="10" fill="#4e3f33" opacity=".45"/>
+</svg>

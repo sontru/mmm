@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="240" viewBox="0 0 192 240" role="img" aria-label="Large ship sail rig">
+  <rect width="192" height="240" fill="none"/>
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <rect x="25" y="190" width="44" height="34" fill="#3a2b36" stroke="#161117" stroke-width="5"/>
+    <rect x="39" y="43" width="20" height="152" fill="#38282d" stroke="#161117" stroke-width="5"/>
+    <rect x="34" y="35" width="30" height="14" fill="#211920" stroke="#161117" stroke-width="4"/>
+    <path d="M49 13 V43 M36 28 H62" stroke="#d4a148" stroke-width="8"/>
+    <circle cx="49" cy="12" r="5" fill="#f2c75c" stroke="#1e1516" stroke-width="3"/>
+    <rect x="151" y="158" width="27" height="52" fill="#3a2b36" stroke="#161117" stroke-width="5"/>
+    <circle cx="164" cy="148" r="10" fill="#d4a148" stroke="#161117" stroke-width="4"/>
+    <path d="M57 56 C91 84 128 116 164 145 C132 163 94 165 59 147 Z" fill="#efe8c9" stroke="#1e1516" stroke-width="5"/>
+    <path d="M67 72 C98 98 129 124 151 145" stroke="#b7ad91" stroke-width="5" opacity=".8"/>
+    <path d="M72 108 C101 128 126 141 145 150" stroke="#b7ad91" stroke-width="4" opacity=".65"/>
+    <path d="M59 147 L164 148" stroke="#2b2022" stroke-width="5"/>
+    <path d="M49 195 H164" stroke="#6b472d" stroke-width="8"/>
+    <rect x="156" y="141" width="17" height="23" fill="#2d2430" stroke="#161117" stroke-width="4"/>
+  </g>
+</svg>

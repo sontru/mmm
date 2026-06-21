@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="84" viewBox="0 0 48 84" role="img" aria-label="Sister Margaret NPC sprite">
+  <defs>
+    <linearGradient id="habit" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#20211f"/>
+      <stop offset="1" stop-color="#050606"/>
+    </linearGradient>
+    <linearGradient id="veil" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#151716"/>
+      <stop offset="1" stop-color="#030404"/>
+    </linearGradient>
+    <linearGradient id="wimple" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e0d7bd"/>
+      <stop offset="1" stop-color="#958b70"/>
+    </linearGradient>
+    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c08c61"/>
+      <stop offset="1" stop-color="#805638"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ground shadow -->
+  <ellipse cx="24" cy="77" rx="15.5" ry="4.3" fill="#050506" opacity=".62"/>
+
+  <!-- robe silhouette -->
+  <path d="M14 35 C10 43 8 55 7 69 C12 73 36 73 41 69 C40 55 38 43 34 35 C31 32 28 31 24 31 C20 31 17 32 14 35 Z" fill="#040505"/>
+  <path d="M15 36 C12 44 11 56 10 68 C14 71 34 71 38 68 C37 56 36 44 33 36 C30 33 27 32 24 32 C21 32 18 33 15 36 Z" fill="url(#habit)"/>
+
+  <!-- arms hidden under habit -->
+  <path d="M15 39 C11 47 10 56 10 67 C12 69 16 69 18 67 C17 56 17 47 20 38 Z" fill="#0b0c0c"/>
+  <path d="M33 39 C37 47 38 56 38 67 C36 69 32 69 30 67 C31 56 31 47 28 38 Z" fill="#0b0c0c"/>
+  <path d="M15 40 C13 49 13 59 14 68" fill="none" stroke="#30322e" stroke-width="1" opacity=".8"/>
+  <path d="M33 40 C35 49 35 59 34 68" fill="none" stroke="#30322e" stroke-width="1" opacity=".8"/>
+
+  <!-- feet -->
+  <path d="M14 75 C17 73 20 73 22 75 C20 77 16 77 14 75 Z" fill="#040404"/>
+  <path d="M26 75 C28 73 31 73 34 75 C32 77 28 77 26 75 Z" fill="#040404"/>
+  <path d="M16 74.5 C17.5 74 20 74 21.5 74.5" fill="none" stroke="#49453a" stroke-width=".7" opacity=".65"/>
+  <path d="M26.5 74.5 C28 74 30.5 74 32 74.5" fill="none" stroke="#49453a" stroke-width=".7" opacity=".65"/>
+
+  <!-- central robe / scapular -->
+  <path d="M18 34 C19 44 19 55 20 66 H28 C29 55 29 44 30 34 C28 33 26 33 24 33 C22 33 20 33 18 34 Z" fill="#0a0b0b"/>
+  <path d="M20 38 L24 66 L28 38 Z" fill="#151615" opacity=".9"/>
+  <path d="M24 39 V65" stroke="#2b2c29" stroke-width="1" opacity=".85"/>
+  <path d="M20 43 H28 M20.5 50 H27.5 M21 57 H27" stroke="#232521" stroke-width=".8" opacity=".65"/>
+
+  <!-- white collar / wimple chest -->
+  <path d="M18 31 C19 37 20 43 22 47 H26 C28 43 29 37 30 31 C28 34 20 34 18 31 Z" fill="url(#wimple)"/>
+  <path d="M19 35 C21 38 27 38 29 35" fill="none" stroke="#756d58" stroke-width="1" opacity=".75"/>
+  <path d="M22 38 V47 M26 38 V47" stroke="#766e58" stroke-width=".8" opacity=".5"/>
+
+  <!-- broad veil -->
+  <path d="M11 32 C12 17 17 8 24 8 C31 8 36 17 37 32 C38 43 38 55 36 66 C32 68 29 63 28 51 L20 51 C19 63 16 68 12 66 C10 55 10 43 11 32 Z" fill="#030404"/>
+  <path d="M13 31 C14 18 18 10 24 10 C30 10 34 18 35 31 C35 42 34 52 32 61 C29 55 28 45 28 35 H20 C20 45 19 55 16 61 C14 52 13 42 13 31 Z" fill="url(#veil)"/>
+  <path d="M15 30 C17 15 21 11 24 11 C27 11 31 15 33 30" fill="none" stroke="#2c2f2b" stroke-width="1.2" opacity=".9"/>
+
+  <!-- white coif frame around face -->
+  <path d="M16 20 C17 14 20 11 24 11 C28 11 31 14 32 20 C31 18 29 17 27 16 C25 15 23 15 21 16 C19 17 17 18 16 20 Z" fill="#d9cfb2"/>
+  <path d="M16 20 C16.5 28 19 34 24 35 C29 34 31.5 28 32 20 C30 17 18 17 16 20 Z" fill="#d2c8aa"/>
+  <path d="M18 20 C18 15 21 13 24 13 C27 13 30 15 30 20 C30 27 27.5 32 24 33 C20.5 32 18 27 18 20 Z" fill="url(#skin)"/>
+  <path d="M17 20 C19 17 29 17 31 20" fill="none" stroke="#eee3bf" stroke-width="2" opacity=".85"/>
+
+  <!-- face detail -->
+  <path d="M18.5 21 C20 19.6 22 19.7 23 21" fill="none" stroke="#342014" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M25 21 C26 19.7 28 19.6 29.5 21" fill="none" stroke="#342014" stroke-width="1.2" stroke-linecap="round"/>
+  <ellipse cx="20.8" cy="22.7" rx="1.05" ry=".75" fill="#111214"/>
+  <ellipse cx="27.2" cy="22.7" rx="1.05" ry=".75" fill="#111214"/>
+  <circle cx="21.1" cy="22.4" r=".28" fill="#dfd0a6" opacity=".9"/>
+  <circle cx="27.5" cy="22.4" r=".28" fill="#dfd0a6" opacity=".9"/>
+  <path d="M24.6 23 C25.2 25.4 24.7 26.6 23.3 27" fill="none" stroke="#6d4630" stroke-width=".8" stroke-linecap="round"/>
+  <path d="M21.6 29.3 C23 30.1 25.2 30.1 26.5 29.3" fill="none" stroke="#25130d" stroke-width=".85" stroke-linecap="round"/>
+  <path d="M18 24 C19 30 21 33 24 34 C27 33 29 30 30 24" fill="none" stroke="#6d4c37" stroke-width=".7" opacity=".35"/>
+
+  <!-- rosary / librarian key hint -->
+  <path d="M30 43 C32 48 32 53 29 58" fill="none" stroke="#6c5f45" stroke-width=".9" stroke-dasharray="1.2 1.4" opacity=".85"/>
+  <circle cx="29" cy="58" r="1.1" fill="none" stroke="#b49a55" stroke-width=".8"/>
+  <path d="M29 59.2 v3 M27.8 60.6 h2.4" stroke="#b49a55" stroke-width=".8" stroke-linecap="round"/>
+
+  <!-- hands tucked in sleeves -->
+  <path d="M16 54 C17.5 55.5 19 56 20.5 55" fill="none" stroke="#8a5d3d" stroke-width="2" stroke-linecap="round"/>
+  <path d="M32 54 C30.5 55.5 29 56 27.5 55" fill="none" stroke="#8a5d3d" stroke-width="2" stroke-linecap="round"/>
+  <path d="M15 51 C17 53 19 54 21 54" fill="none" stroke="#111211" stroke-width="4" stroke-linecap="round"/>
+  <path d="M33 51 C31 53 29 54 27 54" fill="none" stroke="#111211" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- pixel highlights -->
+  <rect x="20" y="18" width="2" height="2" fill="#d0a075" opacity=".42"/>
+  <rect x="27" y="18" width="2" height="2" fill="#d0a075" opacity=".32"/>
+  <rect x="22" y="14" width="5" height="1" fill="#f1e7c9" opacity=".45"/>
+  <rect x="18" y="35" width="2" height="9" fill="#c9bfa3" opacity=".38"/>
+  <rect x="29" y="37" width="2" height="10" fill="#4b4c46" opacity=".5"/>
+  <rect x="13" y="41" width="2" height="11" fill="#262824" opacity=".7"/>
+  <rect x="34" y="42" width="2" height="11" fill="#262824" opacity=".55"/>
+</svg>
