@@ -139,7 +139,7 @@
         "name": "Gangway to Abbey Island",
         "x": 9,
         "y": 7,
-        "w": 2,
+        "w": 1,
         "h": 1,
         "exitArea": "island",
         "exitTile": {

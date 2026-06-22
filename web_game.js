@@ -285,10 +285,10 @@ const SHIP_BUILDING = {
   h: 4,
   background: WATER,
   entrances: [
-    { id: "harbour-ship-boarding-plank", name: "Boarding Plank", areaId: "harbour-ship-deck", x: 1, y: 3, w: 2, h: 1 },
+    { id: "harbour-ship-boarding-plank", name: "Boarding Plank", areaId: "harbour-ship-deck", x: 1, y: 3, w: 1, h: 1 },
   ],
-  doors: [{ x: 1, y: 3, w: 2, h: 1 }],
-  pier: { x: 46, y: 14, w: 2, h: 2 },
+  doors: [{ x: 1, y: 3, w: 1, h: 1 }],
+  pier: { x: 46, y: 14, w: 1, h: 2 },
 };
 
 const AREA_ISLAND = "island";
@@ -1000,14 +1000,15 @@ class World {
   }
 
   patchHarbourShipWater(tiles) {
-    for (let y = SHIP_BUILDING.y; y < SHIP_BUILDING.y + SHIP_BUILDING.h; y += 1) {
+    const pier = SHIP_BUILDING.pier;
+    const waterBottom = Math.max(SHIP_BUILDING.y + SHIP_BUILDING.h, pier.y + pier.h);
+    for (let y = SHIP_BUILDING.y; y < waterBottom; y += 1) {
       for (let x = SHIP_BUILDING.x; x < SHIP_BUILDING.x + SHIP_BUILDING.w; x += 1) {
         if (this.inBounds(x, y)) {
           tiles[y][x] = WATER;
         }
       }
     }
-    const pier = SHIP_BUILDING.pier;
     for (let y = pier.y; y < pier.y + pier.h; y += 1) {
       for (let x = pier.x; x < pier.x + pier.w; x += 1) {
         if (this.inBounds(x, y)) {
@@ -2019,10 +2020,9 @@ class World {
 
   drawShipBoardingPlank(building, x, y, w, h, bob) {
     const entrance = building.entrances[0];
-    const entranceCenterX = x + (entrance.x + entrance.w / 2) * TILE_SIZE;
-    const plankX = entranceCenterX - 10;
+    const plankX = x + entrance.x * TILE_SIZE + 6;
     const plankY = y + entrance.y * TILE_SIZE - 6 + bob;
-    const plankW = 20;
+    const plankW = TILE_SIZE - 12;
     const plankH = TILE_SIZE + 28;
     fill("#8b6840");
     renderCtx.fillRect(plankX, plankY, plankW, plankH);
@@ -2637,7 +2637,7 @@ class ShipRoom {
       width: roomDefaults.width,
       height: roomDefaults.height,
       entrance: roomDefaults.id === AREA_SHIP_ROOM
-        ? { x: 9, y: 7, w: 2, h: 1, exitArea: AREA_ISLAND }
+        ? { x: 9, y: 7, w: 1, h: 1, exitArea: AREA_ISLAND }
         : { x: 9, y: 3, w: 1, h: 2, entryAxis: "vertical", exitArea: AREA_SHIP_ROOM },
       entrances: roomDefaults.id === AREA_SHIP_ROOM
         ? [{ id: "harbour-ship-lower-deck", name: "Stairs to Lower Deck", x: 9, y: 3, w: 1, h: 2, entryAxis: "vertical", exitArea: AREA_SHIP_LOWER_ROOM }]
@@ -2680,7 +2680,7 @@ class ShipRoom {
     this.height = Math.max(1, Number(room.height) || defaults.height);
     this.pixelWidth = this.width * TILE_SIZE;
     this.pixelHeight = this.height * TILE_SIZE;
-    const mainEntrance = room.entrance || { x: 9, y: this.height - 1, w: 2, h: 1 };
+    const mainEntrance = room.entrance || { x: 9, y: this.height - 1, w: 1, h: 1 };
     this.entrance = {
       id: mainEntrance.id || "",
       name: mainEntrance.name || "Entrance",
@@ -2840,7 +2840,33 @@ class ShipRoom {
     )) || null;
   }
 
-  canWalk(rect) {
+  rectTouchesVerticalEntrance(rect) {
+    const footY = rect.y + rect.h;
+    return [this.entrance, ...(this.roomEntrances || [])].some((entrance) => {
+      if (entrance?.entryAxis !== "vertical") {
+        return false;
+      }
+      const left = entrance.x * TILE_SIZE;
+      const right = (entrance.x + entrance.w) * TILE_SIZE;
+      const top = entrance.y * TILE_SIZE;
+      const bottom = (entrance.y + entrance.h) * TILE_SIZE;
+      return footY >= top &&
+        footY < bottom &&
+        rect.x + rect.w > left &&
+        rect.x < right;
+    });
+  }
+
+  canWalk(rect, movement = null) {
+    if (movement?.dx) {
+      const previousRect = movement.previousRect || rect;
+      if (
+        this.rectTouchesVerticalEntrance(previousRect) ||
+        this.rectTouchesVerticalEntrance(rect)
+      ) {
+        return false;
+      }
+    }
     const points = [
       { x: rect.x + rect.w / 2, y: rect.y + rect.h },
       { x: rect.x, y: rect.y + rect.h },
@@ -2964,6 +2990,28 @@ class ShipRoom {
     stroke("#6f5b4a", 2);
     for (let stepY = entranceY + 15; stepY < entranceY + entranceH - 6; stepY += 12) {
       line(entranceX + 12, stepY, entranceX + entranceW - 12, stepY);
+    }
+
+    const railLeftX = entranceX + 8;
+    const railRightX = entranceX + entranceW - 8;
+    const railTopY = entranceY + 7;
+    const railBottomY = entranceY + entranceH - 7;
+    stroke("#241712", 6);
+    line(railLeftX, railTopY, railLeftX, railBottomY);
+    line(railRightX, railTopY, railRightX, railBottomY);
+    stroke("#8b6840", 3);
+    line(railLeftX, railTopY, railLeftX, railBottomY);
+    line(railRightX, railTopY, railRightX, railBottomY);
+
+    for (const railX of [railLeftX, railRightX]) {
+      for (const postY of [railTopY, railBottomY]) {
+        fill("#241712");
+        circle(railX, postY, 5, true);
+        fill("#a77c45");
+        circle(railX, postY, 3, true);
+        fill("#d3ad60");
+        circle(railX, postY - 0.5, 1.25, true);
+      }
     }
   }
 
@@ -3130,8 +3178,7 @@ class WanderingRoomNpc {
   }
 
   moveAxis(dx, dy, map) {
-    const previousX = this.rect.x;
-    const previousY = this.rect.y;
+    const previousRect = { ...this.rect };
     this.rect.x += dx;
     this.rect.y += dy;
     const blockedByActor = roomNpcs.some((npc) => (
@@ -3139,9 +3186,9 @@ class WanderingRoomNpc {
       npc.areaId === this.areaId &&
       actorRectsOverlap(this, npc)
     )) || (currentAreaId === this.areaId && actorRectsOverlap(this, player));
-    if (!map.canWalk(this.rect) || blockedByActor) {
-      this.rect.x = previousX;
-      this.rect.y = previousY;
+    if (!map.canWalk(this.rect, { dx, dy, previousRect }) || blockedByActor) {
+      this.rect.x = previousRect.x;
+      this.rect.y = previousRect.y;
       this.walking = false;
       return false;
     }
@@ -3315,12 +3362,13 @@ class Player {
   }
 
   moveAxis(dx, dy, world) {
+    const previousRect = { ...this.rect };
     this.rect.x += dx;
     this.rect.y += dy;
     const blockedByActor = roomNpcs.some((npc) => (
       npc.areaId === currentAreaId && actorRectsOverlap(this, npc)
     ));
-    if (!world.canWalk(this.rect) || blockedByActor) {
+    if (!world.canWalk(this.rect, { dx, dy, previousRect }) || blockedByActor) {
       this.rect.x -= dx;
       this.rect.y -= dy;
     }
@@ -3890,7 +3938,7 @@ function maybeEnterShipRoom() {
     return;
   }
   const foot = playerFootTile();
-  const onBoardingPlank = foot.x >= 46 && foot.x <= 47 && foot.y <= 13;
+  const onBoardingPlank = foot.x === 46 && foot.y <= 13;
   if (onBoardingPlank) {
     enterShipRoom();
   }

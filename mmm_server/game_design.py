@@ -42,9 +42,9 @@ SHIP_BUILDING = {
     "h": 4,
     "background": TILES["water"],
     "entrances": [
-        {"id": "harbour-ship-boarding-plank", "name": "Boarding Plank", "areaId": "harbour-ship-deck", "x": 1, "y": 3, "w": 2, "h": 1}
+        {"id": "harbour-ship-boarding-plank", "name": "Boarding Plank", "areaId": "harbour-ship-deck", "x": 1, "y": 3, "w": 1, "h": 1}
     ],
-    "pier": {"x": 46, "y": 14, "w": 2, "h": 2},
+    "pier": {"x": 46, "y": 14, "w": 1, "h": 2},
 }
 
 CAVE_ENTRANCES = [
@@ -150,7 +150,7 @@ ROOMS = [
             "name": "Gangway to Abbey Island",
             "x": 9,
             "y": 7,
-            "w": 2,
+            "w": 1,
             "h": 1,
             "exitArea": "island",
             "exitTile": {"x": 46, "y": 14},
@@ -404,11 +404,12 @@ def patch_rock_double_line(tiles):
 
 def patch_harbour_ship_water(tiles):
     """Restore harbour water around the ship placement."""
-    for y in range(SHIP_BUILDING["y"], SHIP_BUILDING["y"] + SHIP_BUILDING["h"]):
+    pier = SHIP_BUILDING["pier"]
+    water_bottom = max(SHIP_BUILDING["y"] + SHIP_BUILDING["h"], pier["y"] + pier["h"])
+    for y in range(SHIP_BUILDING["y"], water_bottom):
         for x in range(SHIP_BUILDING["x"], SHIP_BUILDING["x"] + SHIP_BUILDING["w"]):
             if in_bounds(x, y):
                 tiles[y][x] = TILES["water"]
-    pier = SHIP_BUILDING["pier"]
     for y in range(pier["y"], pier["y"] + pier["h"]):
         for x in range(pier["x"], pier["x"] + pier["w"]):
             if in_bounds(x, y):

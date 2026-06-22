@@ -46,9 +46,9 @@ SHIP_BUILDING = {
     "h": 4,
     "background": WATER,
     "entrances": [
-        {"id": "harbour-ship-boarding-plank", "name": "Boarding Plank", "area_id": "harbour-ship-deck", "x": 1, "y": 3, "w": 2, "h": 1}
+        {"id": "harbour-ship-boarding-plank", "name": "Boarding Plank", "area_id": "harbour-ship-deck", "x": 1, "y": 3, "w": 1, "h": 1}
     ],
-    "pier": {"x": 46, "y": 14, "w": 2, "h": 2},
+    "pier": {"x": 46, "y": 14, "w": 1, "h": 2},
 }
 
 LIGHTHOUSE_BUILDING = {
@@ -206,11 +206,12 @@ class World:
 
     def _patch_harbour_ship_water(self, tiles):
         """Restore harbour water around the desktop ship placement."""
-        for y in range(SHIP_BUILDING["y"], SHIP_BUILDING["y"] + SHIP_BUILDING["h"]):
+        pier = SHIP_BUILDING["pier"]
+        water_bottom = max(SHIP_BUILDING["y"] + SHIP_BUILDING["h"], pier["y"] + pier["h"])
+        for y in range(SHIP_BUILDING["y"], water_bottom):
             for x in range(SHIP_BUILDING["x"], SHIP_BUILDING["x"] + SHIP_BUILDING["w"]):
                 if self.in_bounds(x, y):
                     tiles[y][x] = WATER
-        pier = SHIP_BUILDING["pier"]
         for y in range(pier["y"], pier["y"] + pier["h"]):
             for x in range(pier["x"], pier["x"] + pier["w"]):
                 if self.in_bounds(x, y):
@@ -1097,7 +1098,7 @@ class World:
         pygame.draw.rect(surface, (182, 165, 109), (mast_x - 2, y + 4 + bob, 4, 18))
         pygame.draw.rect(surface, (182, 165, 109), (mast_x - 10, y + 12 + bob, 20, 3))
 
-        plank = pygame.Rect(base_x + TILE_SIZE * 2 - 10, base_y + TILE_SIZE * 3 - 6 + bob, 20, TILE_SIZE + 28)
+        plank = pygame.Rect(base_x + TILE_SIZE + 6, base_y + TILE_SIZE * 3 - 6 + bob, TILE_SIZE - 12, TILE_SIZE + 28)
         pygame.draw.rect(surface, (139, 104, 64), plank)
         pygame.draw.rect(surface, (61, 42, 27), plank, 2)
         for offset in range(12, plank.height, 12):
